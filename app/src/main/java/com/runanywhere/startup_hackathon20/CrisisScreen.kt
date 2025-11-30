@@ -2,31 +2,31 @@ package com.runanywhere.startup_hackathon20
 
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
@@ -35,106 +35,111 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.runanywhere.startup_hackathon20.data.CrisisReport
-import java.text.SimpleDateFormat
-import java.util.*
 
-// --- NEON-TACTICAL DESIGN SYSTEM ---
-private val VoidBlack = Color(0xFF050505)
-private val GlassSurface = Color(0xFF151515)
+// --- 1. THE NEON-TACTICAL DESIGN SYSTEM ---
 
-// Module Colors (Neon Glow)
-private val CommandRed = Color(0xFFFF3333)
-private val IntelCyan = Color(0xFF00E5FF)
-private val SystemViolet = Color(0xFFD500F9)
+// Color Palette (Cyberpunk Neon)
+val VoidBlack = Color(0xFF050505)
+val MagmaRed = Color(0xFFFF3333)
+val CyberCyan = Color(0xFF00E5FF)
+val DeepViolet = Color(0xFFD500F9)
+val ObsidianGlass = Color(0xFF151515).copy(alpha = 0.9f)
+val WhiteText = Color(0xFFFFFFFF)
 
-// Utility Colors
-private val TextPrimary = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFF888888)
+// Typography
+val TacticalFont = FontFamily.Monospace
 
-// Tab Navigation
-enum class Tab { COMMAND, INTEL, SYSTEM }
+// Enum for Navigation
+enum class Tab { COMMAND, INTEL, SETTINGS }
 
-/**
- * Cyber-Command HUD Interface v3.0
- *
- * Modular 3D Interface with:
- * - Physics-based tilt reactions
- * - Neon glow modules
- * - 3D depth and layering
- * - Floating glass dock navigation
- */
+// --- 2. MAIN SCREEN COMPOSABLE ---
+
 @Composable
 fun CrisisScreen(viewModel: CrisisViewModel = viewModel()) {
     var currentTab by remember { mutableStateOf(Tab.COMMAND) }
-    val view = LocalView.current
 
     Scaffold(
         containerColor = VoidBlack,
         bottomBar = {
             NeonDock(
                 selected = currentTab,
-                onSelect = { tab ->
-                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    currentTab = tab
-                }
+                onSelect = { currentTab = it }
             )
         }
     ) { padding ->
+        // Background Mesh Gradient
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(Color(0xFF111111), VoidBlack),
+                        radius = 1200f
+                    )
+                )
         ) {
-            // Animated mesh gradient background
-            AnimatedMeshBackground()
-
-            // Module Switcher with animation
+            // 3D Module Switcher
             AnimatedContent(
                 targetState = currentTab,
-                label = "tabSwitch"
+                label = "ModuleSwitch",
+                modifier = Modifier.fillMaxSize()
             ) { tab ->
                 when (tab) {
                     Tab.COMMAND -> CommandModule(viewModel)
                     Tab.INTEL -> IntelModule(viewModel)
-                    Tab.SYSTEM -> SystemModule(viewModel)
+                    Tab.SETTINGS -> SettingsModule(viewModel)
                 }
             }
         }
     }
 }
 
-/**
- * 3D Tilt Interaction Modifier
- * Creates physics-based tilt effect on touch
- */
-fun Modifier.tiltOnTouch(): Modifier = composed {
-    var rotationX by remember { mutableStateOf(0f) }
-    var rotationY by remember { mutableStateOf(0f) }
+// --- 3. ADVANCED INTERACTION: PHYSICS MODIFIER ---
+
+fun Modifier.tiltOnTouch(
+    tiltStrength: Float = 10f,
+    scaleStrength: Float = 0.95f
+): Modifier = composed {
+    var rotationX by remember { mutableFloatStateOf(0f) }
+    var rotationY by remember { mutableFloatStateOf(0f) }
+    val isPressed = rotationX != 0f || rotationY != 0f
+
+    // Smooth physics animation
     val scale by animateFloatAsState(
-        targetValue = if (rotationX != 0f || rotationY != 0f) 0.95f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "tiltScale"
+        targetValue = if (isPressed) scaleStrength else 1f,
+        animationSpec = tween(100),
+        label = "Scale"
     )
+    val animatedRotX by animateFloatAsState(targetValue = rotationX, label = "RotX")
+    val animatedRotY by animateFloatAsState(targetValue = rotationY, label = "RotY")
+
+    val view = LocalView.current
 
     this
         .graphicsLayer {
-            this.rotationX = rotationX
-            this.rotationY = rotationY
+            this.rotationX = animatedRotX
+            this.rotationY = animatedRotY
             this.scaleX = scale
             this.scaleY = scale
-            cameraDistance = 12f * density
+            cameraDistance = 16f * density // Increases 3D perspective depth
         }
         .pointerInput(Unit) {
             detectTapGestures(
                 onPress = { offset ->
-                    val centerX = size.width / 2f
-                    val centerY = size.height / 2f
-                    rotationX = (centerY - offset.y) / 10f
-                    rotationY = (offset.x - centerX) / 10f
+                    // Trigger Haptics
+                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+
+                    // Calculate Tilt Physics
+                    val centerX = size.width / 2
+                    val centerY = size.height / 2
+                    // Invert Y logic because pressing top should tilt top-away (negative X rot)
+                    rotationX = (centerY - offset.y) / tiltStrength
+                    rotationY = (offset.x - centerX) / tiltStrength
+
                     tryAwaitRelease()
+
+                    // Reset Physics
                     rotationX = 0f
                     rotationY = 0f
                 }
@@ -142,401 +147,177 @@ fun Modifier.tiltOnTouch(): Modifier = composed {
         }
 }
 
-/**
- * Animated Mesh Background
- * Subtle radial gradient with slow movement
- */
-@Composable
-fun AnimatedMeshBackground() {
-    val infiniteTransition = rememberInfiniteTransition(label = "meshAnim")
-    val offset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 200f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(15000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "meshOffset"
-    )
+// --- 4. MODULE 1: COMMAND CONSOLE (Magma Theme) ---
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        Color(0xFF111111),
-                        VoidBlack
-                    ),
-                    center = androidx.compose.ui.geometry.Offset(offset, offset)
-                )
-            )
-    )
-}
-
-/**
- * Neon Dock - 3D Floating Navigation
- * Bottom navigation bar with glass morphism and neon indicators
- */
-@Composable
-fun NeonDock(
-    selected: Tab,
-    onSelect: (Tab) -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 40.dp, vertical = 20.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        // Glass pill background
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(30.dp))
-                .background(GlassSurface.copy(alpha = 0.9f))
-                .border(
-                    1.dp,
-                    Brush.linearGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.3f),
-                            Color.Transparent
-                        )
-                    ),
-                    RoundedCornerShape(30.dp)
-                )
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            DockItem(
-                icon = Icons.Default.Terminal,
-                label = "COMMAND",
-                color = CommandRed,
-                isSelected = selected == Tab.COMMAND,
-                onClick = { onSelect(Tab.COMMAND) }
-            )
-            DockItem(
-                icon = Icons.Default.Radar,
-                label = "INTEL",
-                color = IntelCyan,
-                isSelected = selected == Tab.INTEL,
-                onClick = { onSelect(Tab.INTEL) }
-            )
-            DockItem(
-                icon = Icons.Default.Settings,
-                label = "SYSTEM",
-                color = SystemViolet,
-                isSelected = selected == Tab.SYSTEM,
-                onClick = { onSelect(Tab.SYSTEM) }
-            )
-        }
-    }
-}
-
-/**
- * Dock Item - Individual tab button
- */
-@Composable
-fun RowScope.DockItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    color: Color,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.9f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "dockScale"
-    )
-
-    Box(
-        modifier = Modifier
-            .weight(1f)
-            .scale(scale)
-            .clip(RoundedCornerShape(24.dp))
-            .background(
-                if (isSelected)
-                    color.copy(alpha = 0.2f)
-                else
-                    Color.Transparent
-            )
-            .border(
-                width = 1.dp,
-                color = if (isSelected) color else Color.Transparent,
-                shape = RoundedCornerShape(24.dp)
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) {
-                onClick()
-            }
-            .padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Icon(
-                icon,
-                contentDescription = label,
-                tint = if (isSelected) color else TextSecondary,
-                modifier = Modifier.size(24.dp)
-            )
-            Text(
-                text = label,
-                color = if (isSelected) color else TextSecondary,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
-            )
-        }
-    }
-}
-
-/**
- * MODULE 1: Command Console
- * Reactor core design with centered input
- */
 @Composable
 fun CommandModule(viewModel: CrisisViewModel) {
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
     val currentModelId by viewModel.currentModelId.collectAsState()
-    var inputText by remember { mutableStateOf("") }
+    var input by remember { mutableStateOf("") }
     val view = LocalView.current
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp),
-        contentAlignment = Alignment.Center
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            // Header
-            Text(
-                text = "COMMAND INTERFACE",
-                color = CommandRed,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Black,
-                fontFamily = FontFamily.Monospace,
-                letterSpacing = 2.sp
-            )
+        // Header
+        Text(
+            text = "COMMAND LINK // ACTIVE",
+            color = MagmaRed,
+            fontFamily = TacticalFont,
+            fontSize = 12.sp,
+            letterSpacing = 2.sp
+        )
 
-            Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-            // Reactor Core Input
-            Box(
-                modifier = Modifier
-                    .size(320.dp)
-                    .tiltOnTouch()
-                    .border(
-                        3.dp,
-                        Brush.sweepGradient(
-                            colors = listOf(
-                                CommandRed,
-                                Color.Transparent,
-                                CommandRed,
-                                Color.Transparent
-                            )
-                        ),
-                        CircleShape
-                    )
-                    .background(Color(0xFF1A0000), CircleShape)
-                    .padding(20.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // Inner glow
-                Box(
-                    modifier = Modifier
-                        .size(240.dp)
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    CommandRed.copy(alpha = 0.1f),
-                                    Color.Transparent
-                                )
-                            ),
-                            CircleShape
-                        )
+        // THE REACTOR INPUT
+        Box(
+            modifier = Modifier
+                .size(320.dp)
+                .tiltOnTouch(tiltStrength = 15f) // High tilt for reactor
+                .border(
+                    2.dp,
+                    Brush.sweepGradient(listOf(MagmaRed, Color.Transparent, MagmaRed)),
+                    CircleShape
                 )
-
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    TextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = {
-                            Text(
-                                "FIELD REPORT...",
-                                color = TextSecondary.copy(alpha = 0.5f),
-                                fontSize = 14.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        },
-                        colors = TextFieldDefaults.colors(
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary,
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            cursorColor = CommandRed,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        textStyle = LocalTextStyle.current.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 13.sp
-                        ),
-                        enabled = currentModelId != null && !isAnalyzing,
-                        maxLines = 4
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Launch Button
-            val buttonInteraction = remember { MutableInteractionSource() }
-            val buttonPressed by buttonInteraction.collectIsPressedAsState()
-            val buttonScale by animateFloatAsState(
-                targetValue = if (buttonPressed) 0.92f else 1f,
-                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                label = "buttonScale"
-            )
-
+                .background(Color(0xFF110000).copy(alpha = 0.8f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            // Inner Core
             Box(
                 modifier = Modifier
-                    .width(200.dp)
-                    .height(60.dp)
-                    .scale(buttonScale)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        if (currentModelId != null && inputText.isNotBlank() && !isAnalyzing)
-                            Brush.horizontalGradient(
-                                listOf(CommandRed, Color(0xFFFF6666))
-                            )
-                        else
-                            Brush.horizontalGradient(
-                                listOf(Color(0xFF333333), Color(0xFF222222))
-                            )
-                    )
-                    .border(
-                        1.dp,
-                        if (currentModelId != null && inputText.isNotBlank())
-                            CommandRed.copy(alpha = 0.5f)
-                        else
-                            Color.Transparent,
-                        RoundedCornerShape(16.dp)
-                    )
-                    .clickable(
-                        interactionSource = buttonInteraction,
-                        indication = null,
-                        enabled = currentModelId != null && inputText.isNotBlank() && !isAnalyzing
-                    ) {
-                        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                        viewModel.analyzeFieldReport(inputText)
-                        inputText = ""
-                    },
-                contentAlignment = Alignment.Center
+                    .size(280.dp)
+                    .border(1.dp, MagmaRed.copy(alpha = 0.3f), CircleShape)
+            )
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(32.dp)
             ) {
                 if (isAnalyzing) {
-                    CircularProgressIndicator(
-                        color = TextPrimary,
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp
-                    )
+                    CircularProgressIndicator(color = MagmaRed)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("UPLOADING PACKET...", color = MagmaRed, fontFamily = TacticalFont)
                 } else {
-                    Text(
-                        text = "◉ LAUNCH",
-                        color = if (currentModelId != null && inputText.isNotBlank())
-                            TextPrimary
-                        else
-                            TextSecondary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Black,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 2.sp
+                    OutlinedTextField(
+                        value = input,
+                        onValueChange = { input = it },
+                        placeholder = {
+                            Text(
+                                "ENTER TACTICAL DATA",
+                                color = MagmaRed.copy(0.5f),
+                                fontSize = 10.sp,
+                                fontFamily = TacticalFont
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = MagmaRed,
+                            unfocusedTextColor = MagmaRed,
+                            cursorColor = MagmaRed,
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent
+                        ),
+                        textStyle = LocalTextStyle.current.copy(
+                            fontFamily = TacticalFont,
+                            color = MagmaRed,
+                            fontSize = 14.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        ),
+                        enabled = currentModelId != null && !isAnalyzing,
+                        maxLines = 3
                     )
                 }
             }
+        }
 
-            if (currentModelId == null) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "⚠ LOAD AI MODEL VIA SYSTEM TAB",
-                    color = Color(0xFFFF8E53),
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
+        Spacer(modifier = Modifier.height(48.dp))
+
+        // Launch Trigger
+        Button(
+            onClick = {
+                view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                viewModel.analyzeFieldReport(input)
+                input = ""
+            },
+            enabled = !isAnalyzing && input.isNotBlank() && currentModelId != null,
+            modifier = Modifier
+                .width(200.dp)
+                .height(56.dp)
+                .tiltOnTouch(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MagmaRed,
+                disabledContainerColor = Color(0xFF333333)
+            ),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text(
+                "TRANSMIT",
+                fontFamily = TacticalFont,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+        }
+
+        if (currentModelId == null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "⚠ LOAD AI MODEL VIA SETTINGS TAB",
+                color = Color(0xFFFF8E53),
+                fontSize = 11.sp,
+                fontFamily = TacticalFont
+            )
         }
     }
 }
 
-/**
- * MODULE 2: Intel Stream
- * 3D stacked glass slabs with neon borders
- */
+// --- 5. MODULE 2: INTEL STREAM (Cyan Theme) ---
+
 @Composable
 fun IntelModule(viewModel: CrisisViewModel) {
     val reports by viewModel.reports.collectAsState()
-    val view = LocalView.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp)
+            .padding(16.dp)
     ) {
-        // Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = "LIVE INTELLIGENCE",
-                    color = IntelCyan,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = FontFamily.Monospace,
-                    letterSpacing = 2.sp
-                )
-                Text(
-                    text = "${reports.size} ACTIVE STREAMS",
-                    color = TextSecondary,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
+            Text(
+                text = "LIVE INTELLIGENCE STREAM [${reports.size}]",
+                color = CyberCyan,
+                fontFamily = TacticalFont,
+                fontSize = 12.sp,
+                letterSpacing = 2.sp
+            )
 
             if (reports.isNotEmpty()) {
+                val view = LocalView.current
                 TextButton(onClick = {
                     view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     viewModel.clearReports()
                 }) {
                     Text(
                         "CLEAR",
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
+                        color = Color.Gray,
+                        fontSize = 11.sp,
+                        fontFamily = TacticalFont,
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Intel Stream
         if (reports.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -546,183 +327,114 @@ fun IntelModule(viewModel: CrisisViewModel) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Info,
-                        contentDescription = null,
-                        tint = TextSecondary.copy(alpha = 0.3f),
-                        modifier = Modifier.size(64.dp)
-                    )
                     Text(
                         "NO ACTIVE STREAMS",
-                        color = TextSecondary,
+                        color = Color.Gray,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
+                        fontFamily = TacticalFont
                     )
                     Text(
                         "Awaiting field intelligence...",
-                        color = TextSecondary.copy(alpha = 0.6f),
+                        color = Color.Gray.copy(alpha = 0.6f),
                         fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace
+                        fontFamily = TacticalFont
                     )
                 }
             }
         } else {
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 20.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 100.dp)
             ) {
                 items(reports.reversed()) { report ->
-                    IntelCard(
-                        report = report,
-                        onClick = {
-                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                        }
-                    )
+                    GlassIntelCard(report)
                 }
             }
         }
     }
 }
 
-/**
- * Intel Card - 3D Glass Slab with Neon Border
- */
 @Composable
-fun IntelCard(
-    report: CrisisReport,
-    onClick: () -> Unit
-) {
+fun GlassIntelCard(report: CrisisReport) {
     val severityColor = when (report.severity.lowercase()) {
-        "critical" -> CommandRed
-        "moderate" -> Color(0xFFFF8E53)
-        else -> IntelCyan
+        "critical" -> MagmaRed
+        "moderate" -> Color.Yellow
+        else -> CyberCyan
     }
 
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(100.dp)
             .tiltOnTouch()
-            .clickable(onClick = onClick)
+            .clip(RoundedCornerShape(12.dp))
+            .background(ObsidianGlass)
+            .border(
+                1.dp,
+                Brush.horizontalGradient(
+                    listOf(severityColor.copy(0.5f), Color.Transparent)
+                ),
+                RoundedCornerShape(12.dp)
+            )
     ) {
-        // Neon border strip (left)
+        // Severity Indicator Bar
         Box(
             modifier = Modifier
-                .width(4.dp)
-                .height(140.dp)
+                .width(6.dp)
+                .fillMaxHeight()
                 .background(severityColor)
-                .blur(8.dp)
         )
 
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 4.dp)
+                .padding(16.dp)
+                .weight(1f)
         ) {
-            Box(
-                modifier = Modifier
-                    .width(4.dp)
-                    .height(140.dp)
-                    .background(severityColor)
-            )
-
-            // Glass slab content
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp))
-                    .background(GlassSurface.copy(alpha = 0.9f))
-                    .border(
-                        1.dp,
-                        Brush.verticalGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.2f),
-                                Color.Transparent
-                            )
-                        ),
-                        RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
-                    )
-                    .padding(20.dp)
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Column {
-                    // Header
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = report.locationName.uppercase(),
-                            color = TextPrimary,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            text = formatTimestamp(report.timestamp),
-                            color = TextSecondary,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Type badge
+                Text(
+                    report.incidentType.uppercase(),
+                    color = severityColor,
+                    fontFamily = TacticalFont,
+                    fontSize = 10.sp
+                )
+                Text(
+                    "T-${report.timestamp.toString().takeLast(4)}",
+                    color = Color.Gray,
+                    fontFamily = TacticalFont,
+                    fontSize = 10.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = report.locationName,
+                color = WhiteText,
+                fontFamily = TacticalFont,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row {
+                report.resourcesNeeded.take(3).forEach { res ->
                     Text(
-                        text = "▸ ${report.incidentType.uppercase()}",
-                        color = severityColor,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
+                        "[$res] ",
+                        color = CyberCyan,
+                        fontFamily = TacticalFont,
+                        fontSize = 10.sp
                     )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Metadata
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "CASUALTIES: ${report.casualties}",
-                            color = TextPrimary,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Text(
-                            text = "STATUS: ${report.sentiment.uppercase()}",
-                            color = severityColor,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    // Resources
-                    if (report.resourcesNeeded.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "ASSETS: ${
-                                report.resourcesNeeded.joinToString(" / ").uppercase()
-                            }",
-                            color = TextSecondary,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
                 }
             }
         }
     }
 }
 
-/**
- * MODULE 3: System Configuration
- * Model management and settings
- */
+// --- 6. MODULE 3: SETTINGS (Violet Theme) ---
+
 @Composable
-fun SystemModule(viewModel: CrisisViewModel) {
+fun SettingsModule(viewModel: CrisisViewModel) {
     val availableModels by viewModel.availableModels.collectAsState()
     val currentModelId by viewModel.currentModelId.collectAsState()
     val downloadProgress by viewModel.downloadProgress.collectAsState()
@@ -736,21 +448,30 @@ fun SystemModule(viewModel: CrisisViewModel) {
     ) {
         // Header
         Text(
-            text = "SYSTEM CONTROL",
-            color = SystemViolet,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Black,
-            fontFamily = FontFamily.Monospace,
+            text = "SYSTEM CONFIGURATION",
+            color = DeepViolet,
+            fontFamily = TacticalFont,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
+            text = "GRID ZERO // OFFLINE",
+            color = Color.Gray,
+            fontFamily = TacticalFont,
+            fontSize = 10.sp
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
             text = statusMessage,
-            color = TextSecondary,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace
+            color = Color.Gray,
+            fontFamily = TacticalFont,
+            fontSize = 11.sp
         )
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -758,10 +479,10 @@ fun SystemModule(viewModel: CrisisViewModel) {
         // AI Models Section
         Text(
             text = "TACTICAL AI SYSTEMS",
-            color = SystemViolet,
-            fontSize = 14.sp,
+            color = DeepViolet,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
+            fontFamily = TacticalFont,
             letterSpacing = 1.sp
         )
 
@@ -773,16 +494,16 @@ fun SystemModule(viewModel: CrisisViewModel) {
                     .fillMaxWidth()
                     .height(100.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(GlassSurface.copy(alpha = 0.5f))
-                    .border(1.dp, SystemViolet.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                    .background(ObsidianGlass.copy(alpha = 0.5f))
+                    .border(1.dp, DeepViolet.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
                     .padding(20.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "Initializing AI systems...",
-                    color = TextSecondary,
+                    color = Color.Gray,
                     fontSize = 13.sp,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = TacticalFont
                 )
             }
         } else {
@@ -815,23 +536,20 @@ fun SystemModule(viewModel: CrisisViewModel) {
                     .fillMaxWidth()
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp)),
-                color = SystemViolet,
-                trackColor = GlassSurface
+                color = DeepViolet,
+                trackColor = ObsidianGlass
             )
             Text(
                 text = "DOWNLOADING: ${(progress * 100).toInt()}%",
-                color = SystemViolet,
+                color = DeepViolet,
                 fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = TacticalFont,
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
     }
 }
 
-/**
- * System Model Card - 3D AI Model Configuration
- */
 @Composable
 fun SystemModelCard(
     model: com.runanywhere.sdk.models.ModelInfo,
@@ -846,13 +564,13 @@ fun SystemModelCard(
             .clip(RoundedCornerShape(16.dp))
             .background(
                 if (isLoaded)
-                    SystemViolet.copy(alpha = 0.15f)
+                    DeepViolet.copy(alpha = 0.15f)
                 else
-                    GlassSurface.copy(alpha = 0.9f)
+                    ObsidianGlass
             )
             .border(
                 2.dp,
-                if (isLoaded) SystemViolet else Color.White.copy(alpha = 0.1f),
+                if (isLoaded) DeepViolet else Color.White.copy(alpha = 0.1f),
                 RoundedCornerShape(16.dp)
             )
             .padding(20.dp)
@@ -860,20 +578,20 @@ fun SystemModelCard(
         Column {
             Text(
                 text = model.name.uppercase(),
-                color = if (isLoaded) SystemViolet else TextPrimary,
-                fontSize = 14.sp,
+                color = if (isLoaded) DeepViolet else WhiteText,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
+                fontFamily = TacticalFont
             )
 
             if (isLoaded) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "◉ OPERATIONAL",
-                    color = SystemViolet,
-                    fontSize = 12.sp,
+                    color = DeepViolet,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = TacticalFont
                 )
             } else {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -882,92 +600,52 @@ fun SystemModelCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // Download Button
-                    val downloadInteraction = remember { MutableInteractionSource() }
-                    val downloadPressed by downloadInteraction.collectIsPressedAsState()
-                    val downloadScale by animateFloatAsState(
-                        targetValue = if (downloadPressed) 0.92f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                        label = "downloadScale"
-                    )
-
-                    Box(
+                    Button(
+                        onClick = onDownload,
+                        enabled = !model.isDownloaded,
                         modifier = Modifier
                             .weight(1f)
-                            .height(44.dp)
-                            .scale(downloadScale)
-                            .clip(RoundedCornerShape(12.dp))
-                            .then(
-                                if (model.isDownloaded)
-                                    Modifier.background(Color(0xFF1A1A1A))
-                                else
-                                    Modifier.background(
-                                        Brush.horizontalGradient(
-                                            listOf(IntelCyan, Color(0xFF0099CC))
-                                        )
-                                    )
-                            )
-                            .clickable(
-                                interactionSource = downloadInteraction,
-                                indication = null,
-                                enabled = !model.isDownloaded
-                            ) {
-                                onDownload()
-                            },
-                        contentAlignment = Alignment.Center
+                            .height(44.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (model.isDownloaded)
+                                Color(0xFF1A1A1A)
+                            else
+                                CyberCyan,
+                            disabledContainerColor = Color(0xFF1A1A1A)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
                             text = if (model.isDownloaded) "✓ READY" else "DOWNLOAD",
-                            color = if (model.isDownloaded) TextSecondary else TextPrimary,
-                            fontSize = 12.sp,
+                            color = if (model.isDownloaded) Color.Gray else WhiteText,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = TacticalFont
                         )
                     }
 
                     // Load Button
-                    val loadInteraction = remember { MutableInteractionSource() }
-                    val loadPressed by loadInteraction.collectIsPressedAsState()
-                    val loadScale by animateFloatAsState(
-                        targetValue = if (loadPressed) 0.92f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                        label = "loadScale"
-                    )
-
-                    Box(
+                    Button(
+                        onClick = onLoad,
+                        enabled = model.isDownloaded,
                         modifier = Modifier
                             .weight(1f)
-                            .height(44.dp)
-                            .scale(loadScale)
-                            .clip(RoundedCornerShape(12.dp))
-                            .then(
-                                if (model.isDownloaded)
-                                    Modifier.background(
-                                        Brush.horizontalGradient(
-                                            listOf(SystemViolet, Color(0xFFAA00CC))
-                                        )
-                                    )
-                                else
-                                    Modifier.background(
-                                        Brush.horizontalGradient(
-                                            listOf(Color(0xFF333333), Color(0xFF222222))
-                                        )
-                                    )
-                            )
-                            .clickable(
-                                interactionSource = loadInteraction,
-                                indication = null,
-                                enabled = model.isDownloaded
-                            ) {
-                                onLoad()
-                            },
-                        contentAlignment = Alignment.Center
+                            .height(44.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (model.isDownloaded)
+                                DeepViolet
+                            else
+                                Color(0xFF333333),
+                            disabledContainerColor = Color(0xFF333333)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
                             text = "LOAD",
-                            color = if (model.isDownloaded) TextPrimary else TextSecondary,
-                            fontSize = 12.sp,
+                            color = if (model.isDownloaded) WhiteText else Color.Gray,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = TacticalFont
                         )
                     }
                 }
@@ -976,9 +654,92 @@ fun SystemModelCard(
     }
 }
 
-// --- UTILITY FUNCTIONS ---
+// --- 7. THE NEON DOCK (Navigation) ---
 
-private fun formatTimestamp(timestamp: Long): String {
-    val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-    return sdf.format(Date(timestamp))
+@Composable
+fun NeonDock(selected: Tab, onSelect: (Tab) -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp)
+            .height(70.dp)
+            .clip(RoundedCornerShape(35.dp))
+            .background(ObsidianGlass)
+            .border(1.dp, Color.White.copy(0.1f), RoundedCornerShape(35.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            DockItem(
+                Tab.COMMAND,
+                Icons.Default.AddCircle,
+                MagmaRed,
+                selected == Tab.COMMAND
+            ) {
+                onSelect(Tab.COMMAND)
+            }
+            DockItem(
+                Tab.INTEL,
+                Icons.Default.List,
+                CyberCyan,
+                selected == Tab.INTEL
+            ) {
+                onSelect(Tab.INTEL)
+            }
+            DockItem(
+                Tab.SETTINGS,
+                Icons.Default.Settings,
+                DeepViolet,
+                selected == Tab.SETTINGS
+            ) {
+                onSelect(Tab.SETTINGS)
+            }
+        }
+    }
+}
+
+@Composable
+fun DockItem(
+    tab: Tab,
+    icon: ImageVector,
+    color: Color,
+    isActive: Boolean,
+    onClick: () -> Unit
+) {
+    val scale by animateFloatAsState(
+        targetValue = if (isActive) 1.2f else 1f,
+        label = "dockScale"
+    )
+    val alpha = if (isActive) 1f else 0.4f
+
+    val view = LocalView.current
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .scale(scale)
+            .pointerInput(Unit) {
+                detectTapGestures {
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    onClick()
+                }
+            }
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = tab.name,
+            tint = color.copy(alpha = alpha),
+            modifier = Modifier.size(28.dp)
+        )
+        if (isActive) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .size(4.dp)
+                    .background(color, CircleShape)
+            )
+        }
+    }
 }
