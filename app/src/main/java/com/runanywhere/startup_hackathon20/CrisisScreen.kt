@@ -1,5 +1,6 @@
 package com.runanywhere.startup_hackathon20
 
+import android.service.autofill.Validators.or
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.*
@@ -312,7 +313,7 @@ fun TacticalFeed(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        Icons.Default.ListAlt,
+                        Icons.Default.Storage,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
                         tint = TacSurface
