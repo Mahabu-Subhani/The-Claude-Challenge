@@ -83,9 +83,11 @@ fun CrisisScreen(viewModel: CrisisViewModel = viewModel()) {
     val vibrate = { view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) }
     val vibrateStrong = { view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS) }
 
-    Box(modifier = Modifier
-        .fillMaxSize()
-        .background(VoidBlack)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(VoidBlack)
+    ) {
 
         // Ambient Fire Glow (Bottom Right Light Source)
         Box(
@@ -353,12 +355,9 @@ fun ObsidianInput(
                     fontSize = 14.sp
                 )
             },
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = TextPrimary,
-                unfocusedTextColor = TextPrimary,
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                disabledContainerColor = Color.Transparent,
+            colors = TextFieldDefaults.textFieldColors(
+                textColor = TextPrimary,
+                backgroundColor = Color.Transparent,
                 cursorColor = Color(0xFFFF4D4D),
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
@@ -720,7 +719,7 @@ fun ObsidianModelSelector(
         downloadProgress?.let { progress ->
             Spacer(modifier = Modifier.height(8.dp))
             LinearProgressIndicator(
-                progress = { progress },
+                progress = progress,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(3.dp)
