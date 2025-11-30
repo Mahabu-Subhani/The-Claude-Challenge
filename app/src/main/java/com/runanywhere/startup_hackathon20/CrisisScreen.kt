@@ -355,9 +355,13 @@ fun ObsidianInput(
                     fontSize = 14.sp
                 )
             },
-            colors = TextFieldDefaults.textFieldColors(
-                textColor = TextPrimary,
-                backgroundColor = Color.Transparent,
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = TextPrimary,
+                unfocusedTextColor = TextPrimary,
+                disabledTextColor = TextSecondary,
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                disabledContainerColor = Color.Transparent,
                 cursorColor = Color(0xFFFF4D4D),
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
@@ -802,14 +806,16 @@ fun ObsidianModelItem(
                             .height(40.dp)
                             .scale(downloadScale)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(
+                            .then(
                                 if (model.isDownloaded)
-                                    Color(0xFF1A1A1A)
+                                    Modifier.background(Color(0xFF1A1A1A))
                                 else
-                                    Brush.horizontalGradient(
-                                        listOf(
-                                            Color(0xFF2F81F7),
-                                            Color(0xFF1E5AAD)
+                                    Modifier.background(
+                                        Brush.horizontalGradient(
+                                            listOf(
+                                                Color(0xFF2F81F7),
+                                                Color(0xFF1E5AAD)
+                                            )
                                         )
                                     )
                             )
@@ -845,14 +851,16 @@ fun ObsidianModelItem(
                             .height(40.dp)
                             .scale(loadScale)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(
+                            .then(
                                 if (model.isDownloaded)
-                                    MagmaGradient
+                                    Modifier.background(MagmaGradient)
                                 else
-                                    Brush.horizontalGradient(
-                                        listOf(
-                                            Color(0xFF333333),
-                                            Color(0xFF222222)
+                                    Modifier.background(
+                                        Brush.horizontalGradient(
+                                            listOf(
+                                                Color(0xFF333333),
+                                                Color(0xFF222222)
+                                            )
                                         )
                                     )
                             )
