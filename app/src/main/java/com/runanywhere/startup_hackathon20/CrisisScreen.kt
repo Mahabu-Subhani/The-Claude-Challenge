@@ -25,20 +25,25 @@ import com.runanywhere.startup_hackathon20.data.CrisisReport
 import java.text.SimpleDateFormat
 import java.util.*
 
+// --- CYBER-TACTICAL THEME DEFINITION ---
+val DarkBg = Color(0xFF050505)
+val CardBg = Color(0xFF121212)
+val CriticalRed = Color(0xFFFF3333)
+val WarningYellow = Color(0xFFFFD54F)
+val SafeTeal = Color(0xFF03DAC5)
+val TextSecondary = Color(0xFF888888)
+
 /**
- * GridZero Tactical Dashboard
+ * GridZero Tactical Dashboard - CYBER-TACTICAL DESIGN
  *
- * This is NOT a chat screen. This is a TACTICAL OPERATIONS CENTER.
- * - Top: Live incident feed with color-coded severity
- * - Bottom: Radio input for field reports
- * - Real-time data extraction from chaotic voice/text reports
+ * Aesthetic: Military-Grade / High Contrast / Information Density
+ * Philosophy: Function over form. Dark mode only. Critical data first.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrisisScreen(viewModel: CrisisViewModel = viewModel()) {
     val reports by viewModel.reports.collectAsState()
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
-    val statusMessage by viewModel.statusMessage.collectAsState()
     val error by viewModel.error.collectAsState()
     val currentModelId by viewModel.currentModelId.collectAsState()
     val availableModels by viewModel.availableModels.collectAsState()
@@ -47,109 +52,280 @@ fun CrisisScreen(viewModel: CrisisViewModel = viewModel()) {
 
     var showModelSelector by remember { mutableStateOf(false) }
     var inputText by remember { mutableStateOf("") }
-    var showDemo by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("GRIDZERO", fontWeight = FontWeight.Bold)
-                        Text(
-                            "Offline Tactical Intelligence",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
-                    }
-                },
-                actions = {
-                    // Demo button
-                    IconButton(onClick = { showDemo = !showDemo }) {
-                        Icon(Icons.Default.Info, "Demo")
-                    }
-
-                    // Clear reports
-                    if (reports.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.clearReports() }) {
-                            Icon(Icons.Default.Delete, "Clear")
-                        }
-                    }
-
-                    // Model selector
-                    IconButton(onClick = { showModelSelector = !showModelSelector }) {
-                        Icon(
-                            if (currentModelId != null) Icons.Default.CheckCircle else Icons.Default.Warning,
-                            "Model Status",
-                            tint = if (currentModelId != null) Color(0xFF4CAF50) else Color(
-                                0xFFFF9800
-                            )
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF1A1A1A),
-                    titleContentColor = Color(0xFF00FF00),
-                    actionIconContentColor = Color(0xFF00FF00)
-                )
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(Color(0xFF0A0A0A))
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkBg)
+            .padding(16.dp)
+    ) {
+        // --- 1. HEADER SECTION ---
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // Status Bar
-            StatusBar(
-                statusMessage = statusMessage,
-                totalBytesSaved = totalBytesSaved,
+            // Blinking Status Light Simulation
+            val infiniteTransition = rememberInfiniteTransition(label = "blink")
+            val alpha by infiniteTransition.animateFloat(
+                initialValue = if (isAnalyzing) 0.3f else 0.5f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(800, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "statusBlink"
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .background(
+                        CriticalRed.copy(alpha = if (isAnalyzing) alpha else 0.5f),
+                        shape = RoundedCornerShape(50)
+                    )
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Text(
+                text = "GRID",
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
+            )
+            Text(
+                text = "ZERO",
+                color = CriticalRed,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Model Status & Settings
+            IconButton(onClick = { showModelSelector = !showModelSelector }) {
+                Icon(
+                    if (currentModelId != null) Icons.Default.CheckCircle else Icons.Default.Warning,
+                    "Model Status",
+                    tint = if (currentModelId != null) SafeTeal else WarningYellow
+                )
+            }
+        }
+
+        Text(
+            text = "OFFLINE SITUATION COMMAND // V1.0",
+            color = TextSecondary,
+            fontSize = 10.sp,
+            letterSpacing = 1.sp,
+            modifier = Modifier.padding(start = 24.dp)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Bandwidth Savings Display
+        if (totalBytesSaved > 0) {
+            Text(
+                text = "BANDWIDTH SAVED: ${formatBytes(totalBytesSaved)}",
+                color = SafeTeal,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                modifier = Modifier.padding(start = 24.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Model Selector Overlay
+        AnimatedVisibility(visible = showModelSelector) {
+            ModelSelector(
+                models = availableModels,
+                currentModelId = currentModelId,
+                onDownload = { modelId -> viewModel.downloadModel(modelId) },
+                onLoad = { modelId -> viewModel.loadModel(modelId) },
+                onRefresh = { viewModel.refreshModels() },
+                onDismiss = { showModelSelector = false },
                 downloadProgress = downloadProgress
             )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
-            // Error Banner
-            error?.let { errorMessage ->
-                ErrorBanner(errorMessage, onDismiss = { viewModel.clearError() })
-            }
-
-            // Demo Instructions
-            AnimatedVisibility(visible = showDemo) {
-                DemoInstructions()
-            }
-
-            // Model Selector
-            AnimatedVisibility(visible = showModelSelector) {
-                ModelSelector(
-                    models = availableModels,
-                    currentModelId = currentModelId,
-                    onDownload = { modelId -> viewModel.downloadModel(modelId) },
-                    onLoad = { modelId -> viewModel.loadModel(modelId) },
-                    onRefresh = { viewModel.refreshModels() },
-                    onDismiss = { showModelSelector = false }
-                )
-            }
-
-            // Tactical Feed (Top Half)
-            TacticalFeed(
-                reports = reports,
-                isAnalyzing = isAnalyzing,
-                modifier = Modifier.weight(1f)
-            )
-
-            // Radio Input (Bottom)
-            RadioInput(
-                inputText = inputText,
-                onInputChange = { inputText = it },
-                onSubmit = {
-                    if (inputText.isNotBlank()) {
-                        viewModel.analyzeFieldReport(inputText)
-                        inputText = ""
+        // --- 2. INPUT SECTION (Tactical Radio) ---
+        Card(
+            colors = CardDefaults.cardColors(containerColor = CardBg),
+            shape = RoundedCornerShape(4.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "INCOMING TRANSMISSION",
+                        color = CriticalRed,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    if (isAnalyzing) {
+                        Text(
+                            text = "PROCESSING...",
+                            color = WarningYellow,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                },
-                isEnabled = currentModelId != null && !isAnalyzing,
-                isAnalyzing = isAnalyzing,
-                modifier = Modifier.fillMaxWidth()
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    placeholder = {
+                        Text(
+                            "Enter field report (e.g. 'Collapse at library, 3 trapped, need crane...')",
+                            color = TextSecondary,
+                            fontSize = 14.sp
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = CriticalRed,
+                        unfocusedBorderColor = TextSecondary,
+                        cursorColor = CriticalRed,
+                        focusedContainerColor = Color.Black.copy(alpha = 0.3f),
+                        unfocusedContainerColor = Color.Black.copy(alpha = 0.3f),
+                        disabledContainerColor = Color.Black.copy(alpha = 0.1f)
+                    ),
+                    enabled = currentModelId != null && !isAnalyzing,
+                    maxLines = 3,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = Color.White)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Action Button
+                Button(
+                    onClick = {
+                        if (inputText.isNotBlank()) {
+                            viewModel.analyzeFieldReport(inputText)
+                            inputText = ""
+                        }
+                    },
+                    enabled = !isAnalyzing && inputText.isNotBlank() && currentModelId != null,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CriticalRed,
+                        disabledContainerColor = CriticalRed.copy(alpha = 0.3f)
+                    ),
+                    shape = RoundedCornerShape(4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    if (isAnalyzing) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "ANALYZING",
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            color = Color.White
+                        )
+                    } else {
+                        Text(
+                            text = "PROCESS INTEL",
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                // Error Display
+                if (error != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "ERROR: $error",
+                        color = CriticalRed,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // --- 3. LIVE FEED SECTION ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "TACTICAL FEED [${reports.size}]",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                letterSpacing = 1.sp
             )
+
+            if (reports.isNotEmpty()) {
+                TextButton(onClick = { viewModel.clearReports() }) {
+                    Text(
+                        text = "CLEAR",
+                        color = CriticalRed,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Feed Content
+        if (reports.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "NO ACTIVE INCIDENTS",
+                        color = TextSecondary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Awaiting field reports...",
+                        color = TextSecondary.copy(alpha = 0.6f),
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(reports.reversed()) { report ->
+                    IncidentCard(report)
+                }
+            }
         }
     }
 }
@@ -352,156 +528,134 @@ fun TacticalFeed(
     }
 }
 
+/**
+ * Cyber-Tactical Incident Card
+ * Design: High contrast, color-coded severity strip, badge system
+ */
 @Composable
 fun IncidentCard(report: CrisisReport) {
-    // Color coding by severity
-    val cardColor = when (report.severity.lowercase()) {
-        "critical" -> Color(0xFFB00020)  // RED - Critical
-        "moderate" -> Color(0xFFFFCC00)  // YELLOW - Moderate
-        else -> Color(0xFF03DAC5)        // TEAL - Low
+    // Determine status color based on severity
+    val statusColor = when (report.severity.lowercase()) {
+        "critical" -> CriticalRed
+        "moderate" -> WarningYellow
+        else -> SafeTeal
     }
-
-    val textColor = when (report.severity.lowercase()) {
-        "critical" -> Color.White
-        "moderate" -> Color.Black
-        else -> Color.Black
-    }
-
-    // Pulsing animation for critical incidents
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = if (report.severity.lowercase() == "critical") 0.7f else 1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alpha"
-    )
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .alpha(if (report.severity.lowercase() == "critical") alpha else 1f),
-        colors = CardDefaults.cardColors(containerColor = cardColor),
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        shape = RoundedCornerShape(4.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Header row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        Icons.Default.Place,
-                        contentDescription = null,
-                        tint = textColor,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = report.locationName,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor,
-                        fontSize = 16.sp
-                    )
-                }
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            // Left Status Strip - Visual severity indicator
+            Box(
+                modifier = Modifier
+                    .width(6.dp)
+                    .fillMaxHeight()
+                    .background(statusColor)
+            )
 
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = textColor.copy(alpha = 0.2f)
+            Column(modifier = Modifier.padding(12.dp)) {
+                // Top Row: Type and Timestamp
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
                         text = report.incidentType.uppercase(),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        color = textColor,
+                        color = statusColor,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        letterSpacing = 1.sp
                     )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Details
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Casualties
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = null,
-                        tint = textColor,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "${report.casualties} casualties",
-                        color = textColor,
-                        fontSize = 14.sp
+                        text = formatTimestamp(report.timestamp),
+                        color = TextSecondary,
+                        fontSize = 10.sp
                     )
                 }
 
-                // Sentiment indicator
-                val sentimentIcon = when (report.sentiment.lowercase()) {
-                    "panic" -> "🚨"
-                    "urgent" -> "⚡"
-                    else -> "✓"
-                }
-                Text(
-                    text = "$sentimentIcon ${report.sentiment}",
-                    color = textColor,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+                Spacer(modifier = Modifier.height(4.dp))
 
-            // Resources needed
-            if (report.resourcesNeeded.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
+                // Main Location Header
                 Text(
-                    text = "RESOURCES NEEDED:",
-                    color = textColor,
-                    fontSize = 12.sp,
+                    text = report.locationName,
+                    color = Color.White,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Badges Row - Casualties and Sentiment
                 Row(
                     modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    report.resourcesNeeded.forEach { resource ->
-                        Surface(
-                            shape = CircleShape,
-                            color = textColor.copy(alpha = 0.2f)
-                        ) {
-                            Text(
-                                text = resource,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                color = textColor,
-                                fontSize = 12.sp
+                    // Casualties Badge
+                    TacticalBadge(
+                        text = "CASUALTIES: ${report.casualties}",
+                        bgColor = Color(0xFF2C2C2C),
+                        textColor = Color.White
+                    )
+
+                    // Sentiment Badge
+                    TacticalBadge(
+                        text = report.sentiment.uppercase(),
+                        bgColor = Color(0xFF2C2C2C),
+                        textColor = Color.White
+                    )
+                }
+
+                // Resource Requirements (if any)
+                if (report.resourcesNeeded.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "REQUIRED ASSETS:",
+                        color = TextSecondary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        report.resourcesNeeded.take(3).forEach { resource ->
+                            TacticalBadge(
+                                text = resource.uppercase(),
+                                bgColor = statusColor.copy(alpha = 0.15f),
+                                textColor = statusColor
                             )
                         }
                     }
                 }
             }
-
-            // Timestamp
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = formatTimestamp(report.timestamp),
-                color = textColor.copy(alpha = 0.7f),
-                fontSize = 11.sp
-            )
         }
+    }
+}
+
+/**
+ * Tactical Badge Component
+ * Compact, high-contrast information chip
+ */
+@Composable
+fun TacticalBadge(text: String, bgColor: Color, textColor: Color) {
+    Surface(
+        color = bgColor,
+        shape = RoundedCornerShape(2.dp)
+    ) {
+        Text(
+            text = text,
+            color = textColor,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            fontSize = 10.sp,
+            letterSpacing = 0.5.sp,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
     }
 }
 
@@ -592,6 +746,10 @@ fun RadioInput(
     }
 }
 
+/**
+ * Tactical Model Selector
+ * Compact, mission-critical AI model management
+ */
 @Composable
 fun ModelSelector(
     models: List<com.runanywhere.sdk.models.ModelInfo>,
@@ -599,11 +757,13 @@ fun ModelSelector(
     onDownload: (String) -> Unit,
     onLoad: (String) -> Unit,
     onRefresh: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    downloadProgress: Float?
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color(0xFF1A1A1A)
+    Card(
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        shape = RoundedCornerShape(4.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -612,31 +772,52 @@ fun ModelSelector(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "TACTICAL AI MODELS",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color(0xFF00FF00),
-                    fontWeight = FontWeight.Bold
+                    text = "TACTICAL AI SYSTEMS",
+                    color = CriticalRed,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    letterSpacing = 1.sp
                 )
                 Row {
                     IconButton(onClick = onRefresh) {
-                        Icon(Icons.Default.Refresh, "Refresh", tint = Color(0xFF00FF00))
+                        Icon(Icons.Default.Refresh, "Refresh", tint = SafeTeal, modifier = Modifier.size(20.dp))
                     }
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, "Close", tint = Color(0xFF00FF00))
+                        Icon(Icons.Default.Close, "Close", tint = CriticalRed, modifier = Modifier.size(20.dp))
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Download Progress Bar
+            downloadProgress?.let { progress ->
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = CriticalRed,
+                    trackColor = Color(0xFF2C2C2C)
+                )
+                Text(
+                    text = "DOWNLOADING: ${(progress * 100).toInt()}%",
+                    color = WarningYellow,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             if (models.isEmpty()) {
                 Text(
-                    text = "No models available. Check initialization...",
-                    color = Color(0xFF888888)
+                    text = "NO MODELS AVAILABLE // CHECK INITIALIZATION",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
                 )
             } else {
                 models.forEach { model ->
-                    ModelItem(
+                    TacticalModelItem(
                         model = model,
                         isLoaded = model.id == currentModelId,
                         onDownload = { onDownload(model.id) },
@@ -649,63 +830,95 @@ fun ModelSelector(
     }
 }
 
+/**
+ * Tactical Model Item
+ * Individual AI model card with download/load controls
+ */
 @Composable
-fun ModelItem(
+fun TacticalModelItem(
     model: com.runanywhere.sdk.models.ModelInfo,
     isLoaded: Boolean,
     onDownload: () -> Unit,
     onLoad: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isLoaded) Color(0xFF1A3A1A) else Color(0xFF2A2A2A)
-        )
+    Surface(
+        color = if (isLoaded) SafeTeal.copy(alpha = 0.1f) else Color(0xFF1A1A1A),
+        shape = RoundedCornerShape(4.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = model.name,
-                style = MaterialTheme.typography.titleSmall,
-                color = if (isLoaded) Color(0xFF00FF00) else Color(0xFFCCCCCC),
-                fontWeight = FontWeight.Bold
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            // Status strip
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(if (isLoaded) SafeTeal else TextSecondary.copy(alpha = 0.3f))
             )
 
-            if (isLoaded) {
-                Spacer(modifier = Modifier.height(4.dp))
+            Column(modifier = Modifier.padding(12.dp)) {
                 Text(
-                    text = "✓ LOADED & OPERATIONAL",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF4CAF50),
+                    text = model.name,
+                    color = if (isLoaded) SafeTeal else Color.White,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
-            } else {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = onDownload,
-                        modifier = Modifier.weight(1f),
-                        enabled = !model.isDownloaded,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF00FF00),
-                            contentColor = Color.Black
-                        )
-                    ) {
-                        Text(if (model.isDownloaded) "✓ Downloaded" else "Download")
-                    }
 
-                    Button(
-                        onClick = onLoad,
-                        modifier = Modifier.weight(1f),
-                        enabled = model.isDownloaded,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF00FF00),
-                            contentColor = Color.Black
-                        )
+                if (isLoaded) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "OPERATIONAL",
+                        color = SafeTeal,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("Load")
+                        Button(
+                            onClick = onDownload,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(36.dp),
+                            enabled = !model.isDownloaded,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = CriticalRed,
+                                disabledContainerColor = TextSecondary.copy(alpha = 0.3f),
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(2.dp)
+                        ) {
+                            Text(
+                                if (model.isDownloaded) "READY" else "DOWNLOAD",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+
+                        Button(
+                            onClick = onLoad,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(36.dp),
+                            enabled = model.isDownloaded,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = SafeTeal,
+                                disabledContainerColor = TextSecondary.copy(alpha = 0.3f),
+                                contentColor = Color.Black
+                            ),
+                            shape = RoundedCornerShape(2.dp)
+                        ) {
+                            Text(
+                                "LOAD",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
                     }
                 }
             }
