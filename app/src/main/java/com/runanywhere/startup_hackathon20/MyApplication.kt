@@ -9,14 +9,17 @@ import com.runanywhere.sdk.llm.llamacpp.LlamaCppServiceProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class MyApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
 
-        // Initialize SDK asynchronously
-        GlobalScope.launch(Dispatchers.IO) {
+        // Initialize SDK synchronously to prevent race conditions.
+        // This blocks the main thread, which is acceptable for critical
+        // one-time initialization.
+        runBlocking {
             initializeSDK()
         }
     }
