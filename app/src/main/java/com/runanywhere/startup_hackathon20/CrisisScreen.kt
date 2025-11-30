@@ -2,8 +2,8 @@ package com.runanywhere.startup_hackathon20
 
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -13,9 +13,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,8 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -36,20 +40,20 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.runanywhere.startup_hackathon20.data.CrisisReport
 
-// --- 1. THE NEON-TACTICAL DESIGN SYSTEM ---
+// --- 1. THE NEON-TACTICAL DESIGN SYSTEM (V2 - ULTRA) ---
 
-// Color Palette (Cyberpunk Neon)
-val VoidBlack = Color(0xFF050505)
-val MagmaRed = Color(0xFFFF3333)
-val CyberCyan = Color(0xFF00E5FF)
-val DeepViolet = Color(0xFFD500F9)
-val ObsidianGlass = Color(0xFF151515).copy(alpha = 0.9f)
+// Color Palette
+val VoidBlack = Color(0xFF020202)
+val MagmaRed = Color(0xFFFF2A2A) // Brighter Red
+val CyberCyan = Color(0xFF00F0FF) // Neon Cyan
+val DeepViolet = Color(0xFFBD00FF)
+val ObsidianGlass = Color(0xFF0A0A0A).copy(alpha = 0.95f) // Darker, heavier glass
 val WhiteText = Color(0xFFFFFFFF)
 
 // Typography
 val TacticalFont = FontFamily.Monospace
 
-// Enum for Navigation
+// Navigation
 enum class Tab { COMMAND, INTEL, SETTINGS }
 
 // --- 2. MAIN SCREEN COMPOSABLE ---
@@ -58,61 +62,192 @@ enum class Tab { COMMAND, INTEL, SETTINGS }
 fun CrisisScreen(viewModel: CrisisViewModel = viewModel()) {
     var currentTab by remember { mutableStateOf(Tab.COMMAND) }
 
+    // Root Scaffold
     Scaffold(
         containerColor = VoidBlack,
         bottomBar = {
-            NeonDock(
-                selected = currentTab,
-                onSelect = { currentTab = it }
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+                    .navigationBarsPadding(),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                NeonDock(
+                    selected = currentTab,
+                    onSelect = { currentTab = it }
+                )
+            }
         }
     ) { padding ->
-        // Background Mesh Gradient
+        // Background: Live Radar Grid
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(Color(0xFF111111), VoidBlack),
-                        radius = 1200f
-                    )
-                )
+                .background(VoidBlack)
         ) {
-            // 3D Module Switcher
-            AnimatedContent(
-                targetState = currentTab,
-                label = "ModuleSwitch",
-                modifier = Modifier.fillMaxSize()
-            ) { tab ->
-                when (tab) {
-                    Tab.COMMAND -> CommandModule(viewModel)
-                    Tab.INTEL -> IntelModule(viewModel)
-                    Tab.SETTINGS -> SettingsModule(viewModel)
+            LiveGridBackground()
+
+            // Content Container
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = padding.calculateTopPadding())
+                    .padding(bottom = 100.dp)
+            ) {
+                AnimatedContent(
+                    targetState = currentTab,
+                    label = "ModuleSwitch",
+                    modifier = Modifier.fillMaxSize()
+                ) { tab ->
+                    when (tab) {
+                        Tab.COMMAND -> CommandModule(viewModel)
+                        Tab.INTEL -> IntelModule(viewModel)
+                        Tab.SETTINGS -> SettingsModule(viewModel)
+                    }
                 }
             }
         }
     }
 }
 
-// --- 3. ADVANCED INTERACTION: PHYSICS MODIFIER ---
+// --- 3. CUSTOM DRAWING ANIMATIONS ---
+
+@Composable
+fun LiveGridBackground() {
+    val infiniteTransition = rememberInfiniteTransition(label = "grid")
+    val scanLineY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 2000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "scanline"
+    )
+
+    Canvas(modifier = Modifier
+        .fillMaxSize()
+        .graphicsLayer { alpha = 0.3f }) {
+        val width = size.width
+        val height = size.height
+        val gridSize = 60.dp.toPx()
+
+        // Draw Vertical Grid Lines
+        for (x in 0..((width / gridSize).toInt())) {
+            drawLine(
+                color = Color.White.copy(alpha = 0.05f),
+                start = Offset(x * gridSize, 0f),
+                end = Offset(x * gridSize, height),
+                strokeWidth = 1f
+            )
+        }
+        // Draw Horizontal Grid Lines
+        for (y in 0..((height / gridSize).toInt())) {
+            drawLine(
+                color = Color.White.copy(alpha = 0.05f),
+                start = Offset(0f, y * gridSize),
+                end = Offset(width, y * gridSize),
+                strokeWidth = 1f
+            )
+        }
+
+        // Draw Active Scanline
+        drawLine(
+            brush = Brush.verticalGradient(
+                colors = listOf(Color.Transparent, MagmaRed.copy(0.5f), Color.Transparent)
+            ),
+            start = Offset(0f, scanLineY % height),
+            end = Offset(width, scanLineY % height),
+            strokeWidth = 2.dp.toPx()
+        )
+    }
+}
+
+@Composable
+fun TacticalLogo() {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(modifier = Modifier.size(64.dp), contentAlignment = Alignment.Center) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val path = Path().apply {
+                    moveTo(size.width / 2, 0f)
+                    lineTo(size.width, size.height * 0.7f)
+                    lineTo(size.width / 2, size.height)
+                    lineTo(0f, size.height * 0.7f)
+                    close()
+                }
+                drawPath(
+                    path = path,
+                    color = MagmaRed.copy(alpha = pulseAlpha),
+                    style = Stroke(width = 4f)
+                )
+                drawCircle(
+                    color = MagmaRed,
+                    radius = 4.dp.toPx(),
+                    center = center
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "GRID ZERO",
+            color = Color.White,
+            fontFamily = TacticalFont,
+            fontWeight = FontWeight.Black,
+            fontSize = 20.sp,
+            letterSpacing = 4.sp
+        )
+        Text(
+            text = "TACTICAL // ONLINE",
+            color = MagmaRed,
+            fontFamily = TacticalFont,
+            fontSize = 10.sp,
+            letterSpacing = 2.sp
+        )
+    }
+}
+
+// --- 4. ADVANCED INTERACTION: PHYSICS (SPRING) ---
 
 fun Modifier.tiltOnTouch(
-    tiltStrength: Float = 10f,
-    scaleStrength: Float = 0.95f
+    tiltStrength: Float = 8f,
+    scaleStrength: Float = 0.96f
 ): Modifier = composed {
     var rotationX by remember { mutableFloatStateOf(0f) }
     var rotationY by remember { mutableFloatStateOf(0f) }
-    val isPressed = rotationX != 0f || rotationY != 0f
 
-    // Smooth physics animation
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) scaleStrength else 1f,
-        animationSpec = tween(100),
+    val animatedRotX by animateFloatAsState(
+        targetValue = rotationX,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "RotX"
+    )
+    val animatedRotY by animateFloatAsState(
+        targetValue = rotationY,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "RotY"
+    )
+    val animatedScale by animateFloatAsState(
+        targetValue = if (rotationX != 0f) scaleStrength else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "Scale"
     )
-    val animatedRotX by animateFloatAsState(targetValue = rotationX, label = "RotX")
-    val animatedRotY by animateFloatAsState(targetValue = rotationY, label = "RotY")
 
     val view = LocalView.current
 
@@ -120,26 +255,22 @@ fun Modifier.tiltOnTouch(
         .graphicsLayer {
             this.rotationX = animatedRotX
             this.rotationY = animatedRotY
-            this.scaleX = scale
-            this.scaleY = scale
-            cameraDistance = 16f * density // Increases 3D perspective depth
+            this.scaleX = animatedScale
+            this.scaleY = animatedScale
+            cameraDistance = 12f * density
         }
         .pointerInput(Unit) {
             detectTapGestures(
                 onPress = { offset ->
-                    // Trigger Haptics
                     view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
 
-                    // Calculate Tilt Physics
                     val centerX = size.width / 2
                     val centerY = size.height / 2
-                    // Invert Y logic because pressing top should tilt top-away (negative X rot)
                     rotationX = (centerY - offset.y) / tiltStrength
                     rotationY = (offset.x - centerX) / tiltStrength
 
                     tryAwaitRelease()
 
-                    // Reset Physics
                     rotationX = 0f
                     rotationY = 0f
                 }
@@ -147,7 +278,7 @@ fun Modifier.tiltOnTouch(
         }
 }
 
-// --- 4. MODULE 1: COMMAND CONSOLE (Magma Theme) ---
+// --- 5. MODULE 1: COMMAND CONSOLE ---
 
 @Composable
 fun CommandModule(viewModel: CrisisViewModel) {
@@ -157,58 +288,65 @@ fun CommandModule(viewModel: CrisisViewModel) {
     val view = LocalView.current
 
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .padding(top = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
     ) {
-        // Header
-        Text(
-            text = "COMMAND LINK // ACTIVE",
-            color = MagmaRed,
-            fontFamily = TacticalFont,
-            fontSize = 12.sp,
-            letterSpacing = 2.sp
-        )
+        // 1. LOGO
+        TacticalLogo()
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.weight(1f))
 
-        // THE REACTOR INPUT
+        // 2. INPUT TERMINAL
         Box(
             modifier = Modifier
-                .size(320.dp)
-                .tiltOnTouch(tiltStrength = 15f) // High tilt for reactor
-                .border(
-                    2.dp,
-                    Brush.sweepGradient(listOf(MagmaRed, Color.Transparent, MagmaRed)),
-                    CircleShape
-                )
-                .background(Color(0xFF110000).copy(alpha = 0.8f), CircleShape),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .height(200.dp)
+                .tiltOnTouch(tiltStrength = 20f)
+                .background(ObsidianGlass, RoundedCornerShape(16.dp))
+                .border(1.dp, MagmaRed.copy(0.3f), RoundedCornerShape(16.dp))
         ) {
-            // Inner Core
-            Box(
-                modifier = Modifier
-                    .size(280.dp)
-                    .border(1.dp, MagmaRed.copy(alpha = 0.3f), CircleShape)
-            )
+            // Corner Brackets
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val s = 20.dp.toPx()
+                val t = 2.dp.toPx()
+                val c = MagmaRed.copy(0.6f)
+                // Top Left
+                drawLine(c, Offset(0f, 0f), Offset(s, 0f), t)
+                drawLine(c, Offset(0f, 0f), Offset(0f, s), t)
+                // Bottom Right
+                drawLine(c, Offset(size.width, size.height), Offset(size.width - s, size.height), t)
+                drawLine(c, Offset(size.width, size.height), Offset(size.width, size.height - s), t)
+            }
 
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(32.dp)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 if (isAnalyzing) {
                     CircularProgressIndicator(color = MagmaRed)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("UPLOADING PACKET...", color = MagmaRed, fontFamily = TacticalFont)
+                    Text(
+                        "ENCRYPTING PACKET...",
+                        color = MagmaRed,
+                        fontFamily = TacticalFont,
+                        fontSize = 12.sp
+                    )
                 } else {
                     OutlinedTextField(
                         value = input,
                         onValueChange = { input = it },
                         placeholder = {
                             Text(
-                                "ENTER TACTICAL DATA",
-                                color = MagmaRed.copy(0.5f),
-                                fontSize = 10.sp,
+                                "ENTER COMMAND SEQUENCE",
+                                color = Color.Gray,
+                                fontSize = 12.sp,
                                 fontFamily = TacticalFont
                             )
                         },
@@ -225,19 +363,19 @@ fun CommandModule(viewModel: CrisisViewModel) {
                         textStyle = LocalTextStyle.current.copy(
                             fontFamily = TacticalFont,
                             color = MagmaRed,
-                            fontSize = 14.sp,
+                            fontSize = 16.sp,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         ),
                         enabled = currentModelId != null && !isAnalyzing,
-                        maxLines = 3
+                        maxLines = 5
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Launch Trigger
+        // 3. TRANSMIT TRIGGER
         Button(
             onClick = {
                 view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
@@ -246,21 +384,30 @@ fun CommandModule(viewModel: CrisisViewModel) {
             },
             enabled = !isAnalyzing && input.isNotBlank() && currentModelId != null,
             modifier = Modifier
-                .width(200.dp)
-                .height(56.dp)
+                .fillMaxWidth()
+                .height(60.dp)
                 .tiltOnTouch(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MagmaRed,
                 disabledContainerColor = Color(0xFF333333)
             ),
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(4.dp)
         ) {
-            Text(
-                "TRANSMIT",
-                fontFamily = TacticalFont,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = Color.Black
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "EXECUTE TRANSMISSION",
+                    fontFamily = TacticalFont,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    fontSize = 16.sp
+                )
+            }
         }
 
         if (currentModelId == null) {
@@ -272,10 +419,12 @@ fun CommandModule(viewModel: CrisisViewModel) {
                 fontFamily = TacticalFont
             )
         }
+
+        Spacer(modifier = Modifier.weight(1.5f))
     }
 }
 
-// --- 5. MODULE 2: INTEL STREAM (Cyan Theme) ---
+// --- 6. MODULE 2: INTEL STREAM ---
 
 @Composable
 fun IntelModule(viewModel: CrisisViewModel) {
@@ -284,20 +433,25 @@ fun IntelModule(viewModel: CrisisViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Spacer(modifier = Modifier.height(20.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(CyberCyan, CircleShape)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "LIVE INTELLIGENCE STREAM [${reports.size}]",
+                text = "LIVE FEED [${reports.size}]",
                 color = CyberCyan,
                 fontFamily = TacticalFont,
                 fontSize = 12.sp,
                 letterSpacing = 2.sp
             )
+
+            Spacer(modifier = Modifier.weight(1f))
 
             if (reports.isNotEmpty()) {
                 val view = LocalView.current
@@ -315,7 +469,6 @@ fun IntelModule(viewModel: CrisisViewModel) {
                 }
             }
         }
-
         Spacer(modifier = Modifier.height(16.dp))
 
         if (reports.isEmpty()) {
@@ -345,10 +498,10 @@ fun IntelModule(viewModel: CrisisViewModel) {
         } else {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(bottom = 100.dp)
+                contentPadding = PaddingValues(bottom = 20.dp)
             ) {
                 items(reports.reversed()) { report ->
-                    GlassIntelCard(report)
+                    DataSlab(report)
                 }
             }
         }
@@ -356,8 +509,8 @@ fun IntelModule(viewModel: CrisisViewModel) {
 }
 
 @Composable
-fun GlassIntelCard(report: CrisisReport) {
-    val severityColor = when (report.severity.lowercase()) {
+fun DataSlab(report: CrisisReport) {
+    val color = when (report.severity.lowercase()) {
         "critical" -> MagmaRed
         "moderate" -> Color.Yellow
         else -> CyberCyan
@@ -366,29 +519,33 @@ fun GlassIntelCard(report: CrisisReport) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp)
             .tiltOnTouch()
-            .clip(RoundedCornerShape(12.dp))
-            .background(ObsidianGlass)
-            .border(
-                1.dp,
-                Brush.horizontalGradient(
-                    listOf(severityColor.copy(0.5f), Color.Transparent)
-                ),
-                RoundedCornerShape(12.dp)
-            )
+            .background(ObsidianGlass, RoundedCornerShape(4.dp))
+            .border(1.dp, color.copy(0.3f), RoundedCornerShape(4.dp))
     ) {
-        // Severity Indicator Bar
+        // ID Strip
         Box(
             modifier = Modifier
-                .width(6.dp)
-                .fillMaxHeight()
-                .background(severityColor)
-        )
+                .width(40.dp)
+                .height(100.dp)
+                .background(color.copy(0.1f))
+                .border(1.dp, color.copy(0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = report.incidentType.take(3).uppercase(),
+                color = color,
+                fontFamily = TacticalFont,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.graphicsLayer { rotationZ = -90f }
+            )
+        }
 
+        // Data Content
         Column(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(12.dp)
                 .weight(1f)
         ) {
             Row(
@@ -396,32 +553,24 @@ fun GlassIntelCard(report: CrisisReport) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    report.incidentType.uppercase(),
-                    color = severityColor,
+                    report.locationName.uppercase(),
+                    color = WhiteText,
                     fontFamily = TacticalFont,
-                    fontSize = 10.sp
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "T-${report.timestamp.toString().takeLast(4)}",
+                    report.timestamp.toString().takeLast(4),
                     color = Color.Gray,
                     fontFamily = TacticalFont,
                     fontSize = 10.sp
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = report.locationName,
-                color = WhiteText,
-                fontFamily = TacticalFont,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row {
-                report.resourcesNeeded.take(3).forEach { res ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                report.resourcesNeeded.take(3).forEach {
                     Text(
-                        "[$res] ",
-                        color = CyberCyan,
+                        ":: $it",
+                        color = color,
                         fontFamily = TacticalFont,
                         fontSize = 10.sp
                     )
@@ -431,7 +580,7 @@ fun GlassIntelCard(report: CrisisReport) {
     }
 }
 
-// --- 6. MODULE 3: SETTINGS (Violet Theme) ---
+// --- 7. MODULE 3: SETTINGS ---
 
 @Composable
 fun SettingsModule(viewModel: CrisisViewModel) {
@@ -444,25 +593,15 @@ fun SettingsModule(viewModel: CrisisViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp)
+            .padding(24.dp)
     ) {
-        // Header
         Text(
-            text = "SYSTEM CONFIGURATION",
+            text = "SYSTEM CONTROL",
             color = DeepViolet,
             fontFamily = TacticalFont,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "GRID ZERO // OFFLINE",
-            color = Color.Gray,
-            fontFamily = TacticalFont,
-            fontSize = 10.sp
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -476,7 +615,6 @@ fun SettingsModule(viewModel: CrisisViewModel) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // AI Models Section
         Text(
             text = "TACTICAL AI SYSTEMS",
             color = DeepViolet,
@@ -599,7 +737,6 @@ fun SystemModelCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Download Button
                     Button(
                         onClick = onDownload,
                         enabled = !model.isDownloaded,
@@ -617,14 +754,13 @@ fun SystemModelCard(
                     ) {
                         Text(
                             text = if (model.isDownloaded) "✓ READY" else "DOWNLOAD",
-                            color = if (model.isDownloaded) Color.Gray else WhiteText,
+                            color = if (model.isDownloaded) Color.Gray else Color.Black,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = TacticalFont
                         )
                     }
 
-                    // Load Button
                     Button(
                         onClick = onLoad,
                         enabled = model.isDownloaded,
@@ -642,7 +778,7 @@ fun SystemModelCard(
                     ) {
                         Text(
                             text = "LOAD",
-                            color = if (model.isDownloaded) WhiteText else Color.Gray,
+                            color = if (model.isDownloaded) Color.Black else Color.Gray,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = TacticalFont
@@ -654,18 +790,21 @@ fun SystemModelCard(
     }
 }
 
-// --- 7. THE NEON DOCK (Navigation) ---
+// --- 8. THE FLOATING DOCK ---
 
 @Composable
 fun NeonDock(selected: Tab, onSelect: (Tab) -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(24.dp)
-            .height(70.dp)
-            .clip(RoundedCornerShape(35.dp))
+            .height(80.dp)
+            .graphicsLayer {
+                shadowElevation = 20f
+                shape = RoundedCornerShape(40.dp)
+                clip = true
+            }
             .background(ObsidianGlass)
-            .border(1.dp, Color.White.copy(0.1f), RoundedCornerShape(35.dp)),
+            .border(1.dp, Color.White.copy(0.1f), RoundedCornerShape(40.dp)),
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -713,7 +852,6 @@ fun DockItem(
         label = "dockScale"
     )
     val alpha = if (isActive) 1f else 0.4f
-
     val view = LocalView.current
 
     Column(
@@ -731,12 +869,12 @@ fun DockItem(
             imageVector = icon,
             contentDescription = tab.name,
             tint = color.copy(alpha = alpha),
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier.size(32.dp)
         )
+        Spacer(modifier = Modifier.height(4.dp))
         if (isActive) {
             Box(
                 modifier = Modifier
-                    .padding(top = 4.dp)
                     .size(4.dp)
                     .background(color, CircleShape)
             )
