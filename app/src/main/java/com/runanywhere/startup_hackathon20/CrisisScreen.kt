@@ -1,14 +1,16 @@
 package com.runanywhere.startup_hackathon20
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColor
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -16,10 +18,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -27,31 +34,93 @@ import com.runanywhere.startup_hackathon20.data.CrisisReport
 import java.text.SimpleDateFormat
 import java.util.*
 
-// --- REFINED TACTICAL UI PALETTE ---
-// This palette is inspired by modern IDEs like VS Code and GitHub's dark theme.
-// It's professional, easy on the eyes, and still feels 'technical' or 'tactical'.
+// --- HOLO-GLASS UI PALETTE ---
+private val GlowRed = Color(0xFFFF3333)
+private val GlowBlue = Color(0xFF2F81F7)
+private val GlowTeal = Color(0xFF03DAC5)
+private val DeepSpaceBlack = Color(0xFF050505)
+private val SpaceDark = Color(0xFF0A0A0A)
 
-private val TacBlack = Color(0xFF0D1117) // Background - deep, dark, slightly blue
-private val TacDark = Color(0xFF161B22)   // Top bars, input areas
-private val TacSurface = Color(0xFF21262D) // Cards and elevated surfaces
-private val TacPrimaryText = Color(0xFFC9D1D9) // Main text - soft white
-private val TacSecondaryText = Color(0xFF8B949E) // Secondary text, icons, hints
-private val TacGreen = Color(0xFF238636)       // A more subdued, professional green
-private val TacGreenBright = Color(0xFF30A14E) // For highlights, buttons, and success states
-private val TacRed = Color(0xFFDA3633)         // For critical errors and alerts
-private val TacOrange = Color(0xFFF7B93E)      // For warnings and moderate severity
-private val TacBlue = Color(0xFF2F81F7)        // For informational and low severity
+// Glass Gradients
+private val GlassGradient = Brush.linearGradient(
+    colors = listOf(
+        Color(0xFFFFFFFF).copy(alpha = 0.15f),
+        Color(0xFFFFFFFF).copy(alpha = 0.05f)
+    ),
+    start = Offset(0f, 0f),
+    end = Offset(1000f, 1000f)
+)
 
+private val BorderGradient = Brush.linearGradient(
+    colors = listOf(
+        Color(0xFFFFFFFF).copy(alpha = 0.5f),
+        Color(0xFFFFFFFF).copy(alpha = 0.1f)
+    )
+)
 
 /**
- * GridZero Tactical Dashboard
- *
- * This is NOT a chat screen. This is a TACTICAL OPERATIONS CENTER.
- * - Top: Live incident feed with color-coded severity
- * - Bottom: Radio input for field reports
- * - Real-time data extraction from chaotic voice/text reports
+ * Holographic Animated Background
+ * Creates a slow-moving mesh gradient effect behind the glass UI
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HolographicBackground() {
+    val infiniteTransition = rememberInfiniteTransition(label = "bg_anim")
+    val offset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(20000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "offset"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DeepSpaceBlack)
+    ) {
+        // Red Orb (Static)
+        Box(
+            modifier = Modifier
+                .offset(x = (-100).dp, y = (-100).dp)
+                .size(400.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(GlowRed.copy(alpha = 0.2f), Color.Transparent)
+                    )
+                )
+        )
+        // Blue Orb (Animated)
+        Box(
+            modifier = Modifier
+                .offset(x = 200.dp, y = 400.dp)
+                .offset(y = (offset * 0.1f).dp)
+                .size(300.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color.Blue.copy(alpha = 0.15f), Color.Transparent)
+                    )
+                )
+        )
+        // Teal Orb (Slower animation)
+        Box(
+            modifier = Modifier
+                .offset(x = 100.dp, y = 600.dp)
+                .offset(y = (offset * 0.05f).dp)
+                .size(250.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(GlowTeal.copy(alpha = 0.1f), Color.Transparent)
+                    )
+                )
+        )
+    }
+}
+
+/**
+ * GridZero Holo-Glass Main Screen
+ */
 @Composable
 fun CrisisScreen(viewModel: CrisisViewModel = viewModel()) {
     val reports by viewModel.reports.collectAsState()
@@ -65,612 +134,562 @@ fun CrisisScreen(viewModel: CrisisViewModel = viewModel()) {
 
     var showModelSelector by remember { mutableStateOf(false) }
     var inputText by remember { mutableStateOf("") }
-    var showDemo by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column(horizontalAlignment = Alignment.Start) {
-                        Text("GRIDZERO", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                        Text(
-                            "OFFLINE TACTICAL INTELLIGENCE",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TacSecondaryText,
-                            letterSpacing = 1.sp
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showDemo = !showDemo }) {
-                        Icon(Icons.Default.Info, "Demo", tint = TacSecondaryText)
-                    }
-                    if (reports.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.clearReports() }) {
-                            Icon(Icons.Default.Delete, "Clear", tint = TacSecondaryText)
-                        }
-                    }
-                    IconButton(onClick = { showModelSelector = !showModelSelector }) {
-                        Icon(
-                            if (currentModelId != null) Icons.Default.CheckCircle else Icons.Default.Warning,
-                            "Model Status",
-                            tint = if (currentModelId != null) TacGreenBright else TacOrange
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = TacDark,
-                    titleContentColor = TacPrimaryText,
-                    actionIconContentColor = TacSecondaryText
-                )
-            )
-        }
-    ) { padding ->
+    // Root Container with Z-Index management
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Layer 1: Animated Holographic Background
+        HolographicBackground()
+
+        // Layer 2: Foreground Glass Content
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .background(TacBlack)
+                .systemBarsPadding()
+                .padding(16.dp)
         ) {
-            StatusBar(
-                statusMessage = statusMessage,
-                totalBytesSaved = totalBytesSaved,
-                downloadProgress = downloadProgress
-            )
-
-            error?.let { errorMessage ->
-                ErrorBanner(errorMessage, onDismiss = { viewModel.clearError() })
-            }
-
-            AnimatedVisibility(visible = showDemo) {
-                DemoInstructions()
-            }
-
-            AnimatedVisibility(visible = showModelSelector) {
-                ModelSelector(
-                    models = availableModels,
-                    currentModelId = currentModelId,
-                    onDownload = { modelId -> viewModel.downloadModel(modelId) },
-                    onLoad = { modelId -> viewModel.loadModel(modelId) },
-                    onRefresh = { viewModel.refreshModels() },
-                    onDismiss = { showModelSelector = false },
-                    downloadProgress = downloadProgress
+            // --- 3D Floating Header ---
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 24.dp)
+            ) {
+                // Pulsing Status Orb
+                val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+                val scale by infiniteTransition.animateFloat(
+                    initialValue = 0.8f,
+                    targetValue = 1.2f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1000),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "scale"
                 )
-            }
 
-            TacticalFeed(
-                reports = reports,
-                isAnalyzing = isAnalyzing,
-                modifier = Modifier.weight(1f)
-            )
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .scale(scale)
+                        .background(GlowRed, shape = RoundedCornerShape(50))
+                        .graphicsLayer { shadowElevation = 20f }
+                )
 
-            RadioInput(
-                inputText = inputText,
-                onInputChange = { inputText = it },
-                onSubmit = {
-                    if (inputText.isNotBlank()) {
-                        viewModel.analyzeFieldReport(inputText)
-                        inputText = ""
-                    }
-                },
-                isEnabled = currentModelId != null && !isAnalyzing,
-                isAnalyzing = isAnalyzing,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-}
+                Spacer(modifier = Modifier.width(16.dp))
 
-@Composable
-fun StatusBar(
-    statusMessage: String,
-    totalBytesSaved: Long,
-    downloadProgress: Float?
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(TacDark)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = statusMessage,
-                style = MaterialTheme.typography.bodyMedium,
-                color = TacSecondaryText,
-                modifier = Modifier.weight(1f)
-            )
-            if (totalBytesSaved > 0) {
                 Text(
-                    text = "📡 ${formatBytes(totalBytesSaved)} SAVED",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TacGreen,
-                    fontWeight = FontWeight.Bold
+                    text = "GRID",
+                    color = Color.White,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 4.sp
                 )
+                Text(
+                    text = "ZERO",
+                    color = GlowRed,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 4.sp,
+                    style = LocalTextStyle.current.copy(
+                        shadow = Shadow(
+                            color = GlowRed,
+                            blurRadius = 20f
+                        )
+                    )
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Model Status Icon (Settings)
+                IconButton(
+                    onClick = { showModelSelector = !showModelSelector },
+                    modifier = Modifier.graphicsLayer { shadowElevation = 10f }
+                ) {
+                    Icon(
+                        if (currentModelId != null) Icons.Default.CheckCircle else Icons.Default.Settings,
+                        "Model Status",
+                        tint = if (currentModelId != null) GlowTeal else Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
             }
-        }
-        downloadProgress?.let { progress ->
-            Spacer(modifier = Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { progress },
+
+            // Status Bar (Glass Panel)
+            GlassPanel(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = statusMessage,
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 12.sp
+                    )
+                    if (totalBytesSaved > 0) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "📡 ${formatBytes(totalBytesSaved)} BANDWIDTH SAVED",
+                            color = GlowTeal,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    downloadProgress?.let { progress ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(2.dp),
+                            color = GlowTeal
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Error Display
+            error?.let { errorMsg ->
+                GlassPanel(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "⚠️ $errorMsg",
+                            color = GlowRed,
+                            fontSize = 12.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = { viewModel.clearError() },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(Icons.Default.Close, "Dismiss", tint = Color.White)
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // Model Selector (Expanded)
+            if (showModelSelector) {
+                GlassPanel(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize()
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "TACTICAL AI SYSTEMS",
+                                color = GlowRed,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 2.sp
+                            )
+                            IconButton(onClick = { viewModel.refreshModels() }) {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    "Refresh",
+                                    tint = Color.White.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (availableModels.isEmpty()) {
+                            Text(
+                                text = "No models available. Initializing...",
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 12.sp
+                            )
+                        } else {
+                            availableModels.forEach { model ->
+                                HoloModelItem(
+                                    model = model,
+                                    isLoaded = model.id == currentModelId,
+                                    onDownload = { viewModel.downloadModel(model.id) },
+                                    onLoad = { viewModel.loadModel(model.id) }
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // --- Glass Input Console ---
+            GlassPanel(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(2.dp),
-                color = TacGreenBright,
-                trackColor = TacSurface
-            )
-        }
-    }
-}
-
-@Composable
-fun ErrorBanner(errorMessage: String, onDismiss: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = TacRed
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "⚠️ $errorMessage",
-                color = Color.White,
-                modifier = Modifier.weight(1f)
-            )
-            IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Default.Close, "Dismiss", tint = Color.White)
-            }
-        }
-    }
-}
-
-@Composable
-fun DemoInstructions() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = TacSurface),
-        border = BorderStroke(1.dp, TacGreen.copy(alpha = 0.5f))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "🎯 DEMO MODE",
-                fontWeight = FontWeight.Bold,
-                color = TacGreenBright,
-                fontSize = 16.sp
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "Try these field reports:",
-                color = TacPrimaryText,
-                fontSize = 14.sp
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val examples = listOf(
-                "Unit 4, structural collapse at library, severe flooding, three civilians trapped, need heavy lift gear immediately!",
-                "This is medic team 2, multiple casualties at North Hospital, approximately 15 injured, need ambulances and medical supplies ASAP",
-                "Fire at downtown sector, building fully engulfed, spreading to adjacent structures, need all available fire teams",
-                "Civil unrest at city hall, large crowd, situation escalating, need police backup and crowd control"
-            )
-
-            examples.forEach { example ->
-                Text(
-                    "• $example",
-                    color = TacSecondaryText,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(vertical = 4.dp),
-                    lineHeight = 16.sp
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun TacticalFeed(
-    reports: List<CrisisReport>,
-    isAnalyzing: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "ACTIVE INCIDENTS",
-                fontWeight = FontWeight.Bold,
-                color = TacPrimaryText,
-                fontSize = 18.sp
-            )
-            if (isAnalyzing) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    color = TacBlue,
-                    strokeWidth = 2.dp
-                )
-            }
-        }
-        if (reports.isEmpty() && !isAnalyzing) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
+                    .animateContentSize()
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.Storage,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = TacSurface
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "COMMAND LINE",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp
                     )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = inputText,
+                        onValueChange = { inputText = it },
+                        placeholder = { Text("Input data stream...", color = Color.Gray) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = GlowRed.copy(alpha = 0.5f),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                            cursorColor = GlowRed,
+                            focusedContainerColor = Color.Black.copy(alpha = 0.3f),
+                            unfocusedContainerColor = Color.Black.copy(alpha = 0.3f)
+                        ),
+                        maxLines = 3,
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = currentModelId != null && !isAnalyzing
+                    )
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "NO ACTIVE INCIDENTS",
-                        color = TacSecondaryText,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Awaiting field reports...",
-                        color = TacSecondaryText.copy(alpha = 0.7f),
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center
-                    )
+
+                    // 3D Pressable Button
+                    Button(
+                        onClick = {
+                            if (inputText.isNotBlank()) {
+                                viewModel.analyzeFieldReport(inputText)
+                                inputText = ""
+                            }
+                        },
+                        enabled = currentModelId != null && !isAnalyzing && inputText.isNotBlank(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .graphicsLayer { shadowElevation = 10f },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = GlowRed.copy(alpha = 0.8f),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        if (isAnalyzing) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                "INITIATE ANALYSIS",
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                        }
+                    }
+
+                    if (currentModelId == null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "⚠️ Load AI model first (tap settings icon)",
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontSize = 11.sp
+                        )
+                    }
                 }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(reports.reversed()) { report ->
-                    IncidentCard(report)
-                }
-            }
-        }
-    }
-}
 
-@Composable
-fun IncidentCard(report: CrisisReport) {
-    val severityColor = when (report.severity.lowercase()) {
-        "critical" -> TacRed
-        "moderate" -> TacOrange
-        else -> TacBlue
-    }
+            Spacer(modifier = Modifier.height(24.dp))
 
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val animatedBorderColor by infiniteTransition.animateColor(
-        initialValue = if (report.severity.lowercase() == "critical") severityColor else Color.Transparent,
-        targetValue = if (report.severity.lowercase() == "critical") severityColor.copy(alpha = 0.5f) else Color.Transparent,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ), label = "borderColor"
-    )
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = TacSurface),
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        border = BorderStroke(2.dp, if (report.severity.lowercase() == "critical") animatedBorderColor else severityColor)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+            // --- Live Feed Header ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        Icons.Default.Place,
-                        contentDescription = null,
-                        tint = severityColor,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = report.locationName,
-                        fontWeight = FontWeight.Bold,
-                        color = TacPrimaryText,
-                        fontSize = 18.sp
-                    )
-                }
+                Text(
+                    text = "ACTIVE STREAMS [${reports.size}]",
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
 
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = severityColor.copy(alpha = 0.2f)
-                ) {
-                    Text(
-                        text = report.incidentType.uppercase(),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        color = severityColor,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
+                if (reports.isNotEmpty()) {
+                    IconButton(onClick = { viewModel.clearReports() }) {
+                        Icon(
+                            Icons.Default.Delete,
+                            "Clear",
+                            tint = Color.White.copy(alpha = 0.3f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            Divider(color = TacDark, thickness = 1.dp)
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
+            // --- Live Feed (Scrollable) ---
+            if (reports.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = Color.White.copy(alpha = 0.2f)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "NO ACTIVE INCIDENTS",
+                            color = Color.White.copy(alpha = 0.3f),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Awaiting field reports...",
+                            color = Color.White.copy(alpha = 0.2f),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(reports.reversed()) { report ->
+                        GlassIncidentCard(report)
+                    }
+                }
+            }
+        }
+    }
+}
 
+/**
+ * Reusable Glass Panel Component
+ */
+@Composable
+fun GlassPanel(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(24.dp))
+            .background(GlassGradient)
+            .border(1.dp, BorderGradient, RoundedCornerShape(24.dp))
+    ) {
+        content()
+    }
+}
+
+/**
+ * Holographic Incident Card with 3D Press Effect
+ */
+@Composable
+fun GlassIncidentCard(report: CrisisReport) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        label = "scale"
+    )
+
+    val statusColor = when (report.severity.lowercase()) {
+        "critical" -> GlowRed
+        "moderate" -> Color(0xFFF7B93E)
+        else -> GlowTeal
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale)
+            .clickable(interactionSource = interactionSource, indication = null) {}
+            .clip(RoundedCornerShape(24.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        statusColor.copy(alpha = 0.1f),
+                        Color(0xFF1E1E1E).copy(alpha = 0.4f)
+                    )
+                )
+            )
+            .border(
+                1.dp,
+                Brush.verticalGradient(
+                    listOf(
+                        statusColor.copy(alpha = 0.5f),
+                        Color.Transparent
+                    )
+                ),
+                RoundedCornerShape(24.dp)
+            )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Glowing Badge
+                Surface(
+                    color = statusColor.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(50),
+                    border = BorderStroke(1.dp, statusColor.copy(alpha = 0.5f))
+                ) {
+                    Text(
+                        text = report.incidentType.uppercase(),
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+
+                Text(
+                    text = formatTimestamp(report.timestamp),
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = report.locationName,
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                style = LocalTextStyle.current.copy(
+                    shadow = Shadow(
+                        color = Color.Black.copy(alpha = 0.5f),
+                        blurRadius = 4f,
+                        offset = Offset(2f, 2f)
+                    )
+                )
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Metadata Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = "Casualties",
-                        tint = TacSecondaryText,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "${report.casualties} casualties",
-                        color = TacPrimaryText,
-                        fontSize = 14.sp
-                    )
-                }
-
-                val sentimentIcon = when (report.sentiment.lowercase()) {
-                    "panic" -> "🚨"
-                    "urgent" -> "⚡"
-                    else -> "✓"
-                }
                 Text(
-                    text = "$sentimentIcon ${report.sentiment}",
-                    color = TacPrimaryText,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                    text = "👤 ${report.casualties} casualties",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 12.sp
                 )
-            }
-
-            if (report.resourcesNeeded.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "RESOURCES NEEDED:",
-                    color = TacSecondaryText,
+                    text = "⚡ ${report.sentiment}",
+                    color = statusColor,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                @OptIn(ExperimentalLayoutApi::class)
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    report.resourcesNeeded.forEach { resource ->
-                        Surface(
-                            shape = CircleShape,
-                            color = TacBlue.copy(alpha = 0.2f)
+            }
+
+            // Resource Grid
+            if (report.resourcesNeeded.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    report.resourcesNeeded.take(3).forEach { res ->
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    Color.Black.copy(alpha = 0.3f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .border(
+                                    1.dp,
+                                    Color.White.copy(alpha = 0.1f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                text = resource,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                color = TacBlue,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
+                                text = res,
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 11.sp
                             )
                         }
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = formatTimestamp(report.timestamp),
-                color = TacSecondaryText.copy(alpha = 0.7f),
-                fontSize = 11.sp,
-                modifier = Modifier.align(Alignment.End)
-            )
         }
     }
 }
 
+/**
+ * Holographic Model Item
+ */
 @Composable
-fun RadioInput(
-    inputText: String,
-    onInputChange: (String) -> Unit,
-    onSubmit: () -> Unit,
-    isEnabled: Boolean,
-    isAnalyzing: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = TacDark,
-        tonalElevation = 8.dp
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            TextField(
-                value = inputText,
-                onValueChange = onInputChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 120.dp),
-                placeholder = {
-                    Text(
-                        "📻 FIELD REPORT INPUT\n\nSpeak or type chaotic situation report...\nAI will extract structured tactical data.",
-                        color = TacSecondaryText.copy(alpha = 0.7f),
-                        lineHeight = 18.sp
-                    )
-                },
-                enabled = isEnabled && !isAnalyzing,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = TacSurface,
-                    unfocusedContainerColor = TacSurface,
-                    disabledContainerColor = TacDark,
-                    focusedTextColor = TacPrimaryText,
-                    unfocusedTextColor = TacPrimaryText,
-                    cursorColor = TacGreenBright,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent
-                ),
-                shape = RoundedCornerShape(8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = onSubmit,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                enabled = isEnabled && inputText.isNotBlank() && !isAnalyzing,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = TacGreenBright,
-                    contentColor = Color.White,
-                    disabledContainerColor = TacSurface,
-                    disabledContentColor = TacSecondaryText
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                if (isAnalyzing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = TacPrimaryText,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("ANALYZING...", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                } else {
-                    Icon(Icons.Default.Send, contentDescription = null)
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("TRANSMIT REPORT", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
-            }
-
-            if (!isEnabled) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "⚠️ Load a tactical AI model to begin operations",
-                    color = TacOrange,
-                    fontSize = 12.sp,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ModelSelector(
-    models: List<com.runanywhere.sdk.models.ModelInfo>,
-    currentModelId: String?,
-    onDownload: (String) -> Unit,
-    onLoad: (String) -> Unit,
-    onRefresh: () -> Unit,
-    onDismiss: () -> Unit,
-    downloadProgress: Float?
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        color = TacDark,
-        shape = RoundedCornerShape(8.dp),
-        tonalElevation = 8.dp
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "TACTICAL AI MODELS",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TacPrimaryText,
-                    fontWeight = FontWeight.Bold
-                )
-                Row {
-                    IconButton(onClick = onRefresh) {
-                        Icon(Icons.Default.Refresh, "Refresh", tint = TacSecondaryText)
-                    }
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, "Close", tint = TacSecondaryText)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (models.isEmpty()) {
-                Text(
-                    text = "No models available. Check initialization...",
-                    color = TacSecondaryText
-                )
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(models) { model ->
-                        CrisisModelItem(
-                            model = model,
-                            isLoaded = model.id == currentModelId,
-                            onDownload = { onDownload(model.id) },
-                            onLoad = { onLoad(model.id) }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun CrisisModelItem(
+fun HoloModelItem(
     model: com.runanywhere.sdk.models.ModelInfo,
     isLoaded: Boolean,
     onDownload: () -> Unit,
     onLoad: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isLoaded) TacGreen.copy(alpha = 0.1f) else TacSurface
-        ),
-        border = if(isLoaded) BorderStroke(1.dp, TacGreenBright) else BorderStroke(1.dp, TacDark)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                if (isLoaded)
+                    Brush.linearGradient(
+                        colors = listOf(
+                            GlowTeal.copy(alpha = 0.2f),
+                            Color.Transparent
+                        )
+                    )
+                else
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.05f),
+                            Color.Transparent
+                        )
+                    )
+            )
+            .border(
+                1.dp,
+                if (isLoaded) GlowTeal.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.1f),
+                RoundedCornerShape(12.dp)
+            )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = model.name,
-                style = MaterialTheme.typography.titleSmall,
-                color = if (isLoaded) TacGreenBright else TacPrimaryText,
+                color = if (isLoaded) GlowTeal else Color.White.copy(alpha = 0.9f),
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
 
             if (isLoaded) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "✓ LOADED & OPERATIONAL",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TacGreen,
+                    text = "✓ OPERATIONAL",
+                    color = GlowTeal,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
             } else {
@@ -684,13 +703,15 @@ fun CrisisModelItem(
                         modifier = Modifier.weight(1f),
                         enabled = !model.isDownloaded,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = TacBlue,
-                            contentColor = Color.White,
-                            disabledContainerColor = TacSurface,
-                            disabledContentColor = TacSecondaryText
-                        )
+                            containerColor = GlowBlue.copy(alpha = 0.6f),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text(if (model.isDownloaded) "✓ DOWNLOADED" else "DOWNLOAD")
+                        Text(
+                            if (model.isDownloaded) "✓ READY" else "DOWNLOAD",
+                            fontSize = 11.sp
+                        )
                     }
 
                     Button(
@@ -698,13 +719,12 @@ fun CrisisModelItem(
                         modifier = Modifier.weight(1f),
                         enabled = model.isDownloaded,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = TacGreenBright,
-                            contentColor = Color.White,
-                            disabledContainerColor = TacSurface,
-                            disabledContentColor = TacSecondaryText
-                        )
+                            containerColor = GlowRed.copy(alpha = 0.6f),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("LOAD")
+                        Text("LOAD", fontSize = 11.sp)
                     }
                 }
             }
@@ -715,7 +735,7 @@ fun CrisisModelItem(
 // --- UTILITY FUNCTIONS ---
 
 private fun formatTimestamp(timestamp: Long): String {
-    val sdf = SimpleDateFormat("HH:mm:ss z", Locale.getDefault())
+    val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     return sdf.format(Date(timestamp))
 }
 
