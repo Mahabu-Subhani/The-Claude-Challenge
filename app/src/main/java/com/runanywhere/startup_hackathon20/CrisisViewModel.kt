@@ -122,7 +122,8 @@ class CrisisViewModel : ViewModel() {
      */
     fun analyzeFieldReport(inputText: String) {
         if (_currentModelId.value == null) {
-            _error.value = "Tactical AI not loaded. Load a model first."
+            _error.value = "Tactical AI not loaded. Please download and load a model first."
+            _statusMessage.value = "ERROR: No model loaded"
             return
         }
 
@@ -189,8 +190,21 @@ Rules:
                 }
 
             } catch (e: Exception) {
-                _error.value = "Analysis failed: ${e.message}"
-                Log.e(TAG, "Analysis failed", e)
+                val errorMsg = when {
+                    e.message?.contains("not initialized", ignoreCase = true) == true -> {
+                        "LLM not initialized. Please wait a moment and try reloading the model."
+                    }
+
+                    e.message?.contains("No model loaded", ignoreCase = true) == true -> {
+                        "Model not loaded. Please load a model from the settings."
+                    }
+
+                    else -> "Analysis failed: ${e.message}"
+                }
+                _error.value = errorMsg
+                _statusMessage.value = "Analysis failed"
+                Log.e(TAG, "Analysis failed: ${e.message}", e)
+                e.printStackTrace()
             } finally {
                 _isAnalyzing.value = false
             }
