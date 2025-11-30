@@ -9,7 +9,23 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+
+// GridZero Tactical Color Scheme
+private val GridZeroDarkColorScheme = darkColorScheme(
+    primary = Color(0xFF00FF00),          // Tactical Green
+    secondary = Color(0xFF4CAF50),        // Success Green
+    tertiary = Color(0xFF03DAC5),         // Teal
+    background = Color(0xFF0A0A0A),       // Almost Black
+    surface = Color(0xFF1A1A1A),          // Dark Gray
+    onPrimary = Color.Black,
+    onSecondary = Color.Black,
+    onTertiary = Color.Black,
+    onBackground = Color(0xFF00FF00),
+    onSurface = Color(0xFF00FF00),
+    error = Color(0xFFB00020)             // Critical Red
+)
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -35,20 +51,13 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun Startup_hackathon20Theme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    darkTheme: Boolean = true, // GridZero is always dark (tactical theme)
+    // Dynamic color disabled for GridZero - we need consistent tactical colors
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    // GridZero uses a fixed dark tactical color scheme
+    val colorScheme = GridZeroDarkColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,

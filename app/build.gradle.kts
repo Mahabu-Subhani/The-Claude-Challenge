@@ -43,6 +43,7 @@ android {
 dependencies {
     // RunAnywhere SDK - Local AARs from GitHub Release v0.1.3-alpha
     // Core SDK (4.01MB)
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation(files("libs/RunAnywhereKotlinSDK-release.aar"))
     // LLM Module (2.12MB) - includes llama.cpp with 7 ARM64 CPU variants
     implementation(files("libs/runanywhere-llm-llamacpp-release.aar"))
