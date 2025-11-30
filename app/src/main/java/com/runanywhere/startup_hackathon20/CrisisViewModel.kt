@@ -94,15 +94,24 @@ class CrisisViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 _statusMessage.value = "Loading tactical AI..."
+                _currentModelId.value = null // Clear current model
+
                 val success = RunAnywhere.loadModel(modelId)
                 if (success) {
+                    // Wait a moment to ensure model is fully initialized
+                    kotlinx.coroutines.delay(500)
+
                     _currentModelId.value = modelId
                     _statusMessage.value = "OPERATIONAL - GridZero AI Online"
+                    Log.i(TAG, "Model loaded successfully: $modelId")
                 } else {
                     _statusMessage.value = "Failed to load model"
+                    _error.value = "Model loading returned false. Try downloading again."
+                    Log.e(TAG, "Model loading returned false")
                 }
             } catch (e: Exception) {
                 _statusMessage.value = "Error loading model: ${e.message}"
+                _error.value = "Model load error: ${e.message}"
                 Log.e(TAG, "Model load failed", e)
             }
         }
@@ -122,7 +131,7 @@ class CrisisViewModel : ViewModel() {
      */
     fun analyzeFieldReport(inputText: String) {
         if (_currentModelId.value == null) {
-            _error.value = "Tactical AI not loaded. Please download and load a model first."
+            _error.value = "Tactical AI not loaded. Please:\n1. Tap settings icon (⚙️)\n2. Download model\n3. Tap LOAD button\n4. Wait for 'OPERATIONAL' status"
             _statusMessage.value = "ERROR: No model loaded"
             return
         }
@@ -134,7 +143,18 @@ class CrisisViewModel : ViewModel() {
             _error.value = null
             _statusMessage.value = "Analyzing field report..."
 
+            // Add a small delay to ensure UI updates are visible
+            kotlinx.coroutines.delay(100)
+
             try {
+                // Verify model is actually loaded before proceeding
+                val currentModel = _currentModelId.value
+                if (currentModel == null) {
+                    throw Exception("Model was unloaded. Please reload the model.")
+                }
+
+                Log.i(TAG, "Starting analysis with model: $currentModel")
+                Log.i(TAG, "Input text: $inputText")
                 // THE WINNING PROMPT
                 // Force the model to act as an emergency dispatcher
                 val systemPrompt = """
@@ -162,8 +182,19 @@ Rules:
 
                 val finalPrompt = "$systemPrompt\n\nField Report: \"$inputText\"\n\nJSON:"
 
-                // Call the One-Shot Generation
-                val response = RunAnywhere.generate(finalPrompt)
+                Log.d(TAG, "Generating with model: ${_currentModelId.value}")
+                Log.d(TAG, "Prompt: $finalPrompt")
+
+                // Call the One-Shot Generation with proper error handling
+                val response = try {
+                    RunAnywhere.generate(finalPrompt)
+                } catch (e: IllegalStateException) {
+                    Log.e(TAG, "LLM not initialized error", e)
+                    throw Exception("LLM component not initialized. Please:\n1. Tap settings icon (⚙️)\n2. Download model if needed\n3. Tap LOAD button\n4. Wait for 'OPERATIONAL' status\n5. Try again")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Generation error", e)
+                    throw e
+                }
 
                 Log.d(TAG, "Raw LLM Response: $response")
 
@@ -272,6 +303,8 @@ Rules:
      */
     private suspend fun retryWithSimplifiedPrompt(inputText: String) {
         try {
+            Log.i(TAG, "Retrying with simplified prompt")
+
             val simplePrompt = """
 Extract incident info from this report in JSON format:
 "$inputText"
@@ -280,18 +313,28 @@ Output only this JSON structure:
 {"location_name":"[location]","incident_type":"Fire|Collapse|Flood|Medical","severity":"Low|Moderate|Critical","casualties":0,"resources_needed":["resource1","resource2"],"sentiment":"Calm|Urgent|Panic"}
             """.trimIndent()
 
-            val response = RunAnywhere.generate(simplePrompt)
+            val response = try {
+                RunAnywhere.generate(simplePrompt)
+            } catch (e: Exception) {
+                Log.e(TAG, "Retry generation failed", e)
+                _error.value = "LLM error: ${e.message}"
+                return
+            }
+
             val report = parseJsonResponse(response)
 
             if (report != null) {
                 _reports.value = _reports.value + report
                 _statusMessage.value = "Report processed (retry) - ${report.incidentType}"
                 _error.value = null
+                Log.i(TAG, "Retry successful")
             } else {
                 _error.value = "Could not extract structured data from report"
+                Log.e(TAG, "Retry parsing failed")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Retry failed", e)
+            _error.value = "Retry failed: ${e.message}"
         }
     }
 
@@ -315,6 +358,28 @@ Output only this JSON structure:
                 loadAvailableModels()
             } catch (e: Exception) {
                 Log.e(TAG, "Model refresh failed", e)
+            }
+        }
+    }
+
+    /**
+     * Diagnostic function to check SDK and model state
+     */
+    fun checkSystemStatus(): String {
+        return buildString {
+            appendLine("=== GridZero System Diagnostics ===")
+            appendLine("Current Model ID: ${_currentModelId.value ?: "NONE"}")
+            appendLine("Available Models: ${_availableModels.value.size}")
+            appendLine("Status: ${_statusMessage.value}")
+            appendLine("Is Analyzing: ${_isAnalyzing.value}")
+            appendLine("Error: ${_error.value ?: "NONE"}")
+            appendLine()
+            appendLine("Available Models Details:")
+            _availableModels.value.forEach { model ->
+                appendLine("  - ${model.name}")
+                appendLine("    ID: ${model.id}")
+                appendLine("    Downloaded: ${model.isDownloaded}")
+                appendLine("    Loaded: ${model.id == _currentModelId.value}")
             }
         }
     }
