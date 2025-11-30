@@ -15,7 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.ripple.rememberRipple
+// Ripple removed for Material3 compatibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -159,7 +159,7 @@ fun CrisisScreen(viewModel: CrisisViewModel = viewModel()) {
                         )
                         .clickable(
                             interactionSource = interactionSource,
-                            indication = rememberRipple(color = Color.White)
+                            indication = null
                         ) {
                             vibrate()
                             showModelSelector = !showModelSelector
@@ -395,7 +395,7 @@ fun ObsidianInput(
                 )
                 .clickable(
                     interactionSource = interactionSource,
-                    indication = rememberRipple(color = Color.White),
+                    indication = null,
                     enabled = isEnabled && text.isNotBlank() && !isBusy
                 ) {
                     if (text.isNotBlank()) {
@@ -476,7 +476,7 @@ fun ObsidianCard(
             )
             .clickable(
                 interactionSource = interactionSource,
-                indication = rememberRipple(color = Color.White)
+                indication = null
             ) {
                 onClick()
             }
@@ -815,7 +815,7 @@ fun ObsidianModelItem(
                             )
                             .clickable(
                                 interactionSource = downloadInteraction,
-                                indication = rememberRipple(color = Color.White),
+                                indication = null,
                                 enabled = !model.isDownloaded
                             ) {
                                 onDownload()
@@ -858,7 +858,7 @@ fun ObsidianModelItem(
                             )
                             .clickable(
                                 interactionSource = loadInteraction,
-                                indication = rememberRipple(color = Color.White),
+                                indication = null,
                                 enabled = model.isDownloaded
                             ) {
                                 onLoad()
