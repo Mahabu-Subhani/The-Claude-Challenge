@@ -61,12 +61,16 @@ class CrisisViewModel : ViewModel() {
     private fun loadAvailableModels() {
         viewModelScope.launch {
             try {
+                Log.i(TAG, "Loading available models...")
                 val models = listAvailableModels()
                 _availableModels.value = models
-                _statusMessage.value = "GRIDZERO READY - Load tactical AI model"
+                _statusMessage.value =
+                    "GRIDZERO READY - Load tactical AI model (${models.size} available)"
+                Log.i(TAG, "Found ${models.size} models: ${models.map { it.name }}")
             } catch (e: Exception) {
                 _statusMessage.value = "Error loading models: ${e.message}"
                 Log.e(TAG, "Failed to load models", e)
+                e.printStackTrace()
             }
         }
     }
@@ -75,17 +79,26 @@ class CrisisViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 _statusMessage.value = "Downloading tactical model..."
+                Log.i(TAG, "Starting download for model: $modelId")
+
                 RunAnywhere.downloadModel(modelId).collect { progress ->
                     _downloadProgress.value = progress
                     _statusMessage.value = "Downloading: ${(progress * 100).toInt()}%"
                 }
+
                 _downloadProgress.value = null
-                _statusMessage.value = "Download complete! Load model to begin operations."
-                refreshModels()
+                Log.i(TAG, "Download complete for: $modelId")
+
+                // Scan for downloaded models
+                RunAnywhere.scanForDownloadedModels()
+                loadAvailableModels()
+
+                _statusMessage.value = "Download complete! Tap LOAD to activate."
             } catch (e: Exception) {
                 _statusMessage.value = "Download failed: ${e.message}"
                 _downloadProgress.value = null
                 Log.e(TAG, "Download failed", e)
+                e.printStackTrace()
             }
         }
     }
@@ -96,14 +109,16 @@ class CrisisViewModel : ViewModel() {
                 _statusMessage.value = "Loading tactical AI..."
                 _currentModelId.value = null // Clear current model
 
+                Log.i(TAG, "Attempting to load model: $modelId")
                 val success = RunAnywhere.loadModel(modelId)
-                if (success) {
-                    // Wait a moment to ensure model is fully initialized
-                    kotlinx.coroutines.delay(500)
 
+                if (success) {
                     _currentModelId.value = modelId
                     _statusMessage.value = "OPERATIONAL - GridZero AI Online"
                     Log.i(TAG, "Model loaded successfully: $modelId")
+
+                    // Test the model with a simple prompt
+                    testModelInitialization()
                 } else {
                     _statusMessage.value = "Failed to load model"
                     _error.value = "Model loading returned false. Try downloading again."
@@ -113,7 +128,27 @@ class CrisisViewModel : ViewModel() {
                 _statusMessage.value = "Error loading model: ${e.message}"
                 _error.value = "Model load error: ${e.message}"
                 Log.e(TAG, "Model load failed", e)
+                e.printStackTrace()
             }
+        }
+    }
+
+    /**
+     * Test that the model is actually working after load
+     */
+    private suspend fun testModelInitialization() {
+        try {
+            Log.i(TAG, "Testing model initialization...")
+            val testResponse = StringBuilder()
+            RunAnywhere.generateStream("Say 'OK'").collect { token ->
+                testResponse.append(token)
+            }
+            Log.i(TAG, "Model test successful. Response: ${testResponse.toString()}")
+            _statusMessage.value = "OPERATIONAL - Model verified and ready"
+        } catch (e: Exception) {
+            Log.e(TAG, "Model test failed", e)
+            _error.value = "Model loaded but not responding. Try reloading."
+            _currentModelId.value = null // Clear it since it's not working
         }
     }
 
@@ -185,9 +220,13 @@ Rules:
                 Log.d(TAG, "Generating with model: ${_currentModelId.value}")
                 Log.d(TAG, "Prompt: $finalPrompt")
 
-                // Call the One-Shot Generation with proper error handling
+                // Call the Generation using streaming (collect all tokens into response)
                 val response = try {
-                    RunAnywhere.generate(finalPrompt)
+                    val fullResponse = StringBuilder()
+                    RunAnywhere.generateStream(finalPrompt).collect { token ->
+                        fullResponse.append(token)
+                    }
+                    fullResponse.toString()
                 } catch (e: IllegalStateException) {
                     Log.e(TAG, "LLM not initialized error", e)
                     throw Exception("LLM component not initialized. Please:\n1. Tap settings icon (⚙️)\n2. Download model if needed\n3. Tap LOAD button\n4. Wait for 'OPERATIONAL' status\n5. Try again")
@@ -314,7 +353,11 @@ Output only this JSON structure:
             """.trimIndent()
 
             val response = try {
-                RunAnywhere.generate(simplePrompt)
+                val fullResponse = StringBuilder()
+                RunAnywhere.generateStream(simplePrompt).collect { token ->
+                    fullResponse.append(token)
+                }
+                fullResponse.toString()
             } catch (e: Exception) {
                 Log.e(TAG, "Retry generation failed", e)
                 _error.value = "LLM error: ${e.message}"
