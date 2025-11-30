@@ -1,6 +1,5 @@
 package com.runanywhere.startup_hackathon20
 
-import android.service.autofill.Validators.or
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.*
@@ -515,10 +514,7 @@ fun RadioInput(
                     .heightIn(min = 120.dp),
                 placeholder = {
                     Text(
-                        "📻 FIELD REPORT INPUT
-
-Speak or type chaotic situation report...
-AI will extract structured tactical data.",
+                        "📻 FIELD REPORT INPUT\n\nSpeak or type chaotic situation report...\nAI will extract structured tactical data.",
                         color = TacSecondaryText.copy(alpha = 0.7f),
                         lineHeight = 18.sp
                     )
